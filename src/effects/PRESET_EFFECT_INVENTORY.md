@@ -66,20 +66,23 @@ cutter, Gaussian blur, and HSL adjustment.
 
 ## Preset browser work
 
-The package includes native-readable names such as “Smooth R to L” and many
-directional scroll, slide, wipe, corner, zoom, spin, and warp entries. They are
-Vegas preset records, not Kdenlive transition definitions.
-`data/effects/templates/native_transition_presets.xml` registers 194 native
-editable effect-stack templates in searchable Movement, Zoom, Spin, Blur, and
-Distortion categories. The first and second clip variants stay separate and
-retain the vendor package entry as a searchable alias. The existing Effects
-library shows a directional preview thumbnail in icon view; each preset drags
-onto a clip as its editable native stack. These are clip effects: they animate
-within the named frame duration, keep the transformed image covering the frame,
-and return to normal framing. They are native interpretations of the source
-names and durations, not converted vendor plugin records or exact copies of
-their rendering. Warp/WarpPin titles use the available transform stack rather
-than pretending that Wave is a pin warp.
+The package includes names such as “Smooth R to L” and directional scroll,
+slide, wipe, corner, zoom, spin, and warp entries. The `.sfpreset` files are
+Vegas event-effect presets, not Kdenlive transition definitions or Sapphire
+`S_Transition` records. As requested, `(1)` is the first/outgoing video event
+and `(2)` is the second/incoming video event.
+`data/effects/templates/native_transition_presets.xml` registers 194 editable
+clip-effect templates in searchable Movement, Zoom, Spin, Blur, and Distortion
+categories. The first and second event variants remain separate and retain the
+source entry as a searchable alias. Applying a template inserts its editable
+effect stack on a clip. The current icon-view thumbnails show motion direction;
+they are not rendered video previews. Animations are bounded to the labeled
+frame count at the outgoing or incoming clip edge so they cannot keep an
+off-screen transform over the rest of the clip. The stacks are native
+interpretations of names and durations, not converted vendor records or exact
+reproductions. Any Sapphire component without a suitable renderer remains
+pending; the available transform is not a substitute for bubble warp, wave, or
+corner pin rendering.
 
 ## First-pass search names
 

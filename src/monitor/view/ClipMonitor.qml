@@ -41,7 +41,6 @@ Item {
     property bool showTimecode: false
     property bool showFps: false
     property bool compactPresentation: false
-    property bool showNoVideoImage: true
     // Display hover audio thumbnails overlay
     property bool showAudiothumb: false
     property bool showClipJobs: false
@@ -147,13 +146,6 @@ Item {
     Item {
         height: root.height - root.controller.rulerHeight
         width: root.width
-        Image {
-            anchors.fill: parent
-            source: "qrc:/qt/qml/org/kde/kdenlive/empty-state-no-video.png"
-            fillMode: Image.PreserveAspectFit
-            visible: root.showNoVideoImage
-            z: -1
-        }
         Item {
             id: frame
             objectName: "referenceframe"

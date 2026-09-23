@@ -153,7 +153,7 @@ Monitor::Monitor(Kdenlive::MonitorId id, MonitorManager *manager, QWidget *paren
         connect(m_glMonitor->quickWindow(), &QQuickWindow::sceneGraphInitialized, m_glMonitor, &VideoWidget::initialize, Qt::DirectConnection);
         connect(m_glMonitor->quickWindow(), &QQuickWindow::beforeRendering, m_glMonitor, &VideoWidget::beforeRendering, Qt::DirectConnection);
         connect(m_glMonitor->quickWindow(), &QQuickWindow::beforeRenderPassRecording, m_glMonitor, &VideoWidget::renderVideo, Qt::DirectConnection);
-        m_glMonitor->setClearColor(KdenliveSettings::window_background());
+        m_glMonitor->refreshClearColor();
         // Enforce geometry recalculation
         m_glMonitor->refreshZoom = true;
         if (restoreVars) {
@@ -3205,7 +3205,7 @@ void Monitor::setProducer(const QUuid uuid, std::shared_ptr<Mlt::Producer> produ
         m_displayedUuid = uuid;
     }
     m_glMonitor->setProducer(std::move(producer), isActive() && isVisible(), pos);
-    if (m_id == Kdenlive::ProjectMonitor && m_glMonitor->rootObject()) {
+    if (m_id == Kdenlive::ProjectMonitor) {
         bool hasVideo = false;
         if (auto *timeline = pCore->window()->getCurrentTimeline()) {
             const auto model = timeline->model();
@@ -3223,7 +3223,7 @@ void Monitor::setProducer(const QUuid uuid, std::shared_ptr<Mlt::Producer> produ
                 }
             }
         }
-        m_glMonitor->rootObject()->setProperty("showNoVideoImage", !hasVideo);
+        m_glMonitor->setBlackBackgroundForEmptyPreview(!hasVideo);
     }
 }
 
@@ -3327,7 +3327,7 @@ void Monitor::purgeCache()
 
 void Monitor::updateBgColor()
 {
-    m_glMonitor->setClearColor(KdenliveSettings::window_background());
+    m_glMonitor->refreshClearColor();
 }
 
 MonitorProxy *Monitor::getControllerProxy()

@@ -118,6 +118,9 @@ VideoWidget::VideoWidget(int id, QObject *parent)
     m_blackClip->set("kdenlive:id", "black");
     m_blackClip->set("out", 3);
     connect(&m_refreshTimer, &QTimer::timeout, this, &VideoWidget::refresh);
+    if (m_id == Kdenlive::ClipMonitor) {
+        setBlackBackgroundForEmptyPreview(true);
+    }
     m_producer = m_blackClip;
     connect(pCore.get(), &Core::switchTimelineRecord, this, &VideoWidget::switchRecordState);
 
@@ -283,6 +286,17 @@ void VideoWidget::clear()
 {
     stopGlsl();
     quickWindow()->update();
+}
+
+void VideoWidget::setBlackBackgroundForEmptyPreview(bool black)
+{
+    m_blackBackgroundForEmptyPreview = black;
+    refreshClearColor();
+}
+
+void VideoWidget::refreshClearColor()
+{
+    setClearColor(m_blackBackgroundForEmptyPreview ? QColor(Qt::black) : KdenliveSettings::window_background());
 }
 
 void VideoWidget::releaseAnalyse()
@@ -652,8 +666,8 @@ int VideoWidget::setProducer(const QString &file)
         m_producer.reset();
         m_producer = m_blackClip;
     }
-    if (rootObject() && m_id == Kdenlive::ClipMonitor) {
-        rootObject()->setProperty("showNoVideoImage", m_producer == m_blackClip);
+    if (m_id == Kdenlive::ClipMonitor) {
+        setBlackBackgroundForEmptyPreview(m_producer == m_blackClip);
     }
     if (m_consumer) {
         // m_consumer->stop();
@@ -691,8 +705,8 @@ int VideoWidget::setProducer(const std::shared_ptr<Mlt::Producer> &producer, boo
     } else {
         m_producer = m_blackClip;
     }
-    if (rootObject() && m_id == Kdenlive::ClipMonitor) {
-        rootObject()->setProperty("showNoVideoImage", m_producer == m_blackClip);
+    if (m_id == Kdenlive::ClipMonitor) {
+        setBlackBackgroundForEmptyPreview(m_producer == m_blackClip);
     }
     setProducerSpeed(0);
     error = reconfigure();

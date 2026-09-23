@@ -276,6 +276,19 @@ QList<int> TimelineModel::getTracksIds(bool audio) const
     return trackIds;
 }
 
+bool TimelineModel::hasVideoClips()
+{
+    for (int videoTrackId : getTracksIds(false)) {
+        const auto items = getItemsInRange(videoTrackId, 0, -1, false);
+        for (int itemId : items) {
+            if (isClip(itemId) && getClipPtr(itemId)->canBeVideo()) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 int TimelineModel::getTrackIndexFromPosition(int pos) const
 {
     Q_ASSERT(pos >= 0 && pos < int(m_allTracks.size()));
@@ -6974,6 +6987,7 @@ void TimelineModel::checkRefresh(int start, int end)
     if (m_blockRefresh) {
         return;
     }
+    Q_EMIT timelineContentChanged();
     int currentPos = tractor()->position();
     if (currentPos >= start && currentPos < end) {
         Q_EMIT requestMonitorRefresh();

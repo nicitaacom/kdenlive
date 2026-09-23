@@ -1912,6 +1912,7 @@ void Monitor::forceMonitorRefresh()
 
 void Monitor::refreshMonitor(bool directUpdate, bool slowRefresh)
 {
+    updateEmptyPreviewState();
     if (!m_glMonitor->isReady()) {
         return;
     }
@@ -3205,19 +3206,18 @@ void Monitor::setProducer(const QUuid uuid, std::shared_ptr<Mlt::Producer> produ
         m_displayedUuid = uuid;
     }
     m_glMonitor->setProducer(std::move(producer), isActive() && isVisible(), pos);
-    if (m_id == Kdenlive::ProjectMonitor) {
-        bool hasVideo = false;
-        if (auto *timeline = pCore->window()->getCurrentTimeline()) {
-            const auto model = timeline->model();
-            for (int videoTrackId : model->getTracksIds(false)) {
-                if (!model->getItemsInRange(videoTrackId, 0, -1, false).empty()) {
-                    hasVideo = true;
-                    break;
-                }
-            }
-        }
-        m_glMonitor->setBlackBackgroundForEmptyPreview(!hasVideo);
+    updateEmptyPreviewState();
+}
+
+void Monitor::updateEmptyPreviewState()
+{
+    if (m_id != Kdenlive::ProjectMonitor) {
+        return;
     }
+
+    auto *timeline = pCore->window()->getCurrentTimeline();
+    const bool hasVideo = timeline && timeline->model()->hasVideoClips();
+    m_glMonitor->setBlackBackgroundForEmptyPreview(!hasVideo);
 }
 
 void Monitor::reconfigure()

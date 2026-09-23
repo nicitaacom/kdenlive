@@ -201,6 +201,8 @@ public:
     QPair<int, int> getAVtracksCount() const;
     /** @brief returns the ids of all audio or video tracks */
     QList<int> getTracksIds(bool audio) const;
+    /** @brief Returns whether the timeline contains at least one clip with video. */
+    bool hasVideoClips();
 
     /** @brief returns the ids of all the tracks */
     std::unordered_set<int> getAllTracksIds() const;
@@ -1073,6 +1075,7 @@ Q_SIGNALS:
     /** @brief signal triggered by clearAssetView */
     void requestClearAssetView(int);
     void requestMonitorRefresh();
+    void timelineContentChanged();
     /** @brief signal triggered by track operations */
     void invalidateZone(int in, int out, bool isAudio = false);
     void invalidateAudioZone(int in, int out);

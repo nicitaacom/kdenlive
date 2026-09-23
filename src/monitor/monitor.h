@@ -356,6 +356,7 @@ public Q_SLOTS:
     void slotCreateRangeMarkerFromZoneQuick();
     void updateTimelineProducer();
     void setProducer(const QUuid, std::shared_ptr<Mlt::Producer> producer, int pos = -1);
+    void updateEmptyPreviewState();
     void slotSetScreen(int screenIndex);
     void slotPreviewResource(const QString &path, const QString &title);
     // void slotSetClipProducer(DocClipBase *clip, QPoint zone = QPoint(), bool forceUpdate = false, int position = -1);

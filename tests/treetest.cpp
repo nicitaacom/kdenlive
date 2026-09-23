@@ -234,6 +234,27 @@ TEST_CASE("Effect filter text-matching logic")
         CHECK(KdenliveTests::effectFilterName(filter, item) == true);
     }
 
+    SECTION("Finds Shake by Sapphire alias")
+    {
+        std::shared_ptr<TreeItem> shakeItem;
+        for (int i = 0; i < model->getRoot()->childCount(); ++i) {
+            const auto candidate = model->getRoot()->child(i);
+            if (candidate->dataColumn(AssetTreeModel::IdCol).toString() == QLatin1String("frei0r.camerashake")) {
+                shakeItem = candidate;
+                break;
+            }
+        }
+        REQUIRE(shakeItem);
+        CHECK(shakeItem->dataColumn(AssetTreeModel::NameCol).toString() == QLatin1String("Shake"));
+
+        filter.setFilterName(true, "s_shake");
+        CHECK(KdenliveTests::effectFilterName(filter, shakeItem) == true);
+        filter.setFilterName(true, "S_Shake");
+        CHECK(KdenliveTests::effectFilterName(filter, shakeItem) == true);
+        filter.setFilterName(true, "s-shake");
+        CHECK(KdenliveTests::effectFilterName(filter, shakeItem) == true);
+    }
+
     SECTION("Ignores diacritics")
     {
         auto item = TreeItem::construct(rootData, model, true);

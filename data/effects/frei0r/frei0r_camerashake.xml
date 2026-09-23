@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" tag="frei0r.camerashake" id="frei0r.camerashake">
-    <name>Camera Shake Ultimate</name>
-    <description>Camera movement effect with rotation, opacity, and blur</description>
+    <name>Shake</name>
+    <aliases>S_Shake; Sapphire Shake; Camera Shake Ultimate; camera shake; screen shake; video shake; picture shake; shake effect; jitter; handheld shake; TRIGGERED; triggered meme; meme shake</aliases>
+    <description>Camera shake with adjustable horizontal and vertical amplitude, intensity, rotation, zoom, opacity, motion blur, and border color. Sapphire-specific seed and edge modes are not available.</description>
     <author>PakeMPC</author>
     <parameter type="animated" name="0" default="0.25" min="0" max="500" decimals="0" factor="500" suffix="px">
         <name>Amplitude X</name>

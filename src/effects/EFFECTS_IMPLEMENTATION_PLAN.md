@@ -11,7 +11,7 @@
 ## Current baseline
 
 - Kdenlive already has project profiles, video/audio tracks, mute/solo, grouping, splitting, frame navigation, speed effects, freeze, transform, chroma key, grayscale, reverse, titles, and native transitions. Prefer improving discoverability and presets over duplicating those systems.
-- Shake is usable as a native effect group. Its current Sapphire coverage is partial; missing seed, Z/Tilt, and independent edge modes remain tracked.
+- Shake is searchable through the supported `frei0r.camerashake` renderer and shown as “Shake.” In this MLT environment, `frei0r.shake0scillate` is unavailable, so the two-filter group is rejected; Sapphire seed, phase, Z/Tilt, and independent edge modes remain pending.
 - Gaussian Blur exposes horizontal and vertical sigma. Proportional lock and Apply Linear controls remain pending.
 - Matching effects and the 194-entry native transition-template catalog are documented in `PRESET_EFFECT_INVENTORY.md`. Preset thumbnails currently depict motion direction; they are not rendered video previews.
 - `S_BlurMoCurves`, `S_BlurMotion`, and RE:Vision `RSMB` now appear as non-applicable Pending entries for their vendor IDs and common search terms.

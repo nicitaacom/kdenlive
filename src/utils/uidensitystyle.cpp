@@ -46,12 +46,8 @@ int UiDensityStyle::density() const
 int UiDensityStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const
 {
     const int base = QProxyStyle::pixelMetric(metric, option, widget);
-    if (m_density == Default) {
-        return base;
-    }
-
-    const int padding = m_density == Compact ? 4 : 2;
-    const int gap = m_density == Compact ? 2 : 0;
+    const int padding = m_density == Default ? 12 : (m_density == Compact ? 8 : 4);
+    const int gap = m_density == Default ? 8 : (m_density == Compact ? 4 : 2);
     switch (metric) {
     case PM_LayoutLeftMargin:
     case PM_LayoutTopMargin:
@@ -72,7 +68,10 @@ int UiDensityStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, 
     case PM_ToolBarItemMargin:
         return padding;
     case PM_DefaultFrameWidth:
-        return qMax(1, base - (m_density == Compact ? 1 : 2));
+        if (m_density == Default) {
+            return base + 2;
+        }
+        return m_density == Minimalist ? qMax(1, base - 1) : base;
     default:
         return base;
     }
@@ -81,13 +80,24 @@ int UiDensityStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, 
 QSize UiDensityStyle::sizeFromContents(ContentsType type, const QStyleOption *option, const QSize &contentsSize, const QWidget *widget) const
 {
     QSize size = QProxyStyle::sizeFromContents(type, option, contentsSize, widget);
-    if (m_density == Default) {
+    if (type == CT_ItemViewItem) {
+        // List and tree rows often contain text rendered by custom delegates.
+        // Shrinking their style hint clips/overlaps that text, so density only
+        // changes their breathing room in the spacious modes.
+        if (m_density == Default) {
+            size.rheight() += 8;
+        } else if (m_density == Compact) {
+            size.rheight() += 4;
+        }
+        return size;
+    }
+    if (m_density == Compact) {
         return size;
     }
 
-    // The default spacing is about 8 px per side. Bring content-bearing
-    // controls down to the selected 4 px or 2 px target.
-    const int reductionPerSide = m_density == Compact ? 4 : 6;
+    // Default adds room around controls; Minimalist trims two pixels per side
+    // from the base style while retaining a usable target size.
+    const int changePerSide = m_density == Default ? 4 : -2;
     switch (type) {
     case CT_PushButton:
     case CT_ToolButton:
@@ -96,9 +106,8 @@ QSize UiDensityStyle::sizeFromContents(ContentsType type, const QStyleOption *op
     case CT_SpinBox:
     case CT_MenuItem:
     case CT_TabBarTab:
-    case CT_ItemViewItem:
-        size.rwidth() -= reductionPerSide * 2;
-        size.rheight() -= reductionPerSide * 2;
+        size.rwidth() += changePerSide * 2;
+        size.rheight() += changePerSide * 2;
         break;
     default:
         break;

@@ -242,17 +242,17 @@
         "placeholders": [
           {
             "isFloatingWindow": false,
-            "itemIndex": 1,
+            "itemIndex": 0,
             "mainWindowUniqueName": "KdenliveKDDock"
           }
         ],
-        "tabIndex": 1,
+        "tabIndex": 0,
         "wasFloating": false
       },
       "uniqueName": "clipmonitor"
     },
     {
-      "lastCloseReason": 0,
+      "lastCloseReason": 2,
       "lastPosition": {
         "lastFloatingGeometry": {
           "height": 0,
@@ -268,7 +268,7 @@
             "mainWindowUniqueName": "KdenliveKDDock"
           }
         ],
-        "tabIndex": 0,
+        "tabIndex": -1,
         "wasFloating": false
       },
       "uniqueName": "projectmonitor"
@@ -539,6 +539,7 @@
     }
   ],
   "closedDockWidgets": [
+    "projectmonitor",
     "clip_properties",
     "library",
     "subtitles",
@@ -593,7 +594,6 @@
           "2": {
             "currentTabIndex": 0,
             "dockWidgets": [
-              "projectmonitor",
               "clipmonitor"
             ],
             "geometry": {

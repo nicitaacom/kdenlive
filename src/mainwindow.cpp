@@ -668,6 +668,19 @@ void MainWindow::init()
 
     // Since not all widgets are added yet, don't use the Save flag now
     setupGUI(KXmlGuiWindow::ToolBar | KXmlGuiWindow::StatusBar | KXmlGuiWindow::Create);
+    // A user's saved kxmlgui configuration can predate newly added actions and
+    // omit them from the menu even though the action exists in our UI resource.
+    // Keep the density chooser reachable across upgrades in that case.
+    for (QAction *menuAction : menuBar()->actions()) {
+        if (menuAction->menu() && menuAction->text().remove(QLatin1Char('&')) == i18n("Settings")) {
+            QMenu *settingsMenu = menuAction->menu();
+            QAction *densityAction = densityMenu->menu()->menuAction();
+            if (!settingsMenu->actions().contains(densityAction)) {
+                settingsMenu->addAction(densityAction);
+            }
+            break;
+        }
+    }
 
     // Remove secondary cut shortcut conflicting with extract action
     QAction *officialCut = actionCollection()->action(KStandardAction::name(KStandardAction::Cut));

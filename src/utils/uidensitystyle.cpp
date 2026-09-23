@@ -46,32 +46,16 @@ int UiDensityStyle::density() const
 int UiDensityStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const
 {
     const int base = QProxyStyle::pixelMetric(metric, option, widget);
-    const int padding = m_density == Default ? 12 : (m_density == Compact ? 8 : 4);
-    const int gap = m_density == Default ? 8 : (m_density == Compact ? 4 : 2);
+    const int padding = m_density == Default ? 8 : (m_density == Compact ? 4 : 2);
+    const int gap = m_density == Default ? 4 : (m_density == Compact ? 2 : 0);
     switch (metric) {
-    case PM_LayoutLeftMargin:
-    case PM_LayoutTopMargin:
-    case PM_LayoutRightMargin:
-    case PM_LayoutBottomMargin:
     case PM_ButtonMargin:
-    case PM_TabBarTabHSpace:
-    case PM_TabBarTabVSpace:
-    case PM_MenuHMargin:
-    case PM_MenuVMargin:
-    case PM_DockWidgetTitleMargin:
         return padding;
-    case PM_LayoutHorizontalSpacing:
-    case PM_LayoutVerticalSpacing:
     case PM_ToolBarItemSpacing:
     case PM_MenuBarItemSpacing:
         return gap;
     case PM_ToolBarItemMargin:
-        return padding;
-    case PM_DefaultFrameWidth:
-        if (m_density == Default) {
-            return base + 2;
-        }
-        return m_density == Minimalist ? qMax(1, base - 1) : base;
+        return m_density == Default ? 4 : (m_density == Compact ? 2 : 0);
     default:
         return base;
     }
@@ -80,37 +64,9 @@ int UiDensityStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, 
 QSize UiDensityStyle::sizeFromContents(ContentsType type, const QStyleOption *option, const QSize &contentsSize, const QWidget *widget) const
 {
     QSize size = QProxyStyle::sizeFromContents(type, option, contentsSize, widget);
-    if (type == CT_ItemViewItem) {
-        // List and tree rows often contain text rendered by custom delegates.
-        // Shrinking their style hint clips/overlaps that text, so density only
-        // changes their breathing room in the spacious modes.
-        if (m_density == Default) {
-            size.rheight() += 8;
-        } else if (m_density == Compact) {
-            size.rheight() += 4;
-        }
-        return size;
-    }
-    if (m_density == Compact) {
-        return size;
-    }
-
-    // Default adds room around controls; Minimalist trims two pixels per side
-    // from the base style while retaining a usable target size.
-    const int changePerSide = m_density == Default ? 4 : -2;
-    switch (type) {
-    case CT_PushButton:
-    case CT_ToolButton:
-    case CT_ComboBox:
-    case CT_LineEdit:
-    case CT_SpinBox:
-    case CT_MenuItem:
-    case CT_TabBarTab:
-        size.rwidth() += changePerSide * 2;
-        size.rheight() += changePerSide * 2;
-        break;
-    default:
-        break;
+    if (type == CT_PushButton || type == CT_ToolButton) {
+        const int extra = m_density == Default ? 2 : (m_density == Compact ? 0 : -2);
+        size += QSize(extra, extra);
     }
     return size.expandedTo(QSize(1, 1));
 }

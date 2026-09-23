@@ -652,6 +652,9 @@ int VideoWidget::setProducer(const QString &file)
         m_producer.reset();
         m_producer = m_blackClip;
     }
+    if (rootObject() && m_id == Kdenlive::ClipMonitor) {
+        rootObject()->setProperty("showNoVideoImage", m_producer == m_blackClip);
+    }
     if (m_consumer) {
         // m_consumer->stop();
         if (!m_consumer->is_stopped()) {
@@ -687,6 +690,9 @@ int VideoWidget::setProducer(const std::shared_ptr<Mlt::Producer> &producer, boo
         m_producer = std::move(producer);
     } else {
         m_producer = m_blackClip;
+    }
+    if (rootObject() && m_id == Kdenlive::ClipMonitor) {
+        rootObject()->setProperty("showNoVideoImage", m_producer == m_blackClip);
     }
     setProducerSpeed(0);
     error = reconfigure();

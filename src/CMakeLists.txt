@@ -146,6 +146,7 @@ ecm_target_qml_sources(kdenliveLib
     monitor/view/AudioView.qml
     monitor/view/AudioZoomBar.qml
     monitor/view/ProjectMonitor.qml
+    monitor/view/empty-state-no-video.png
     monitor/view/Countdown.qml
     monitor/view/ClipMonitor.qml
     monitor/view/MonitorAutomask.qml
@@ -199,6 +200,12 @@ ecm_target_qml_sources(kdenliveLib
     timeline2/view/qml/GuidesMenu.qml
     dialogs/Splash.qml
     dialogs/Simplesplash.qml
+)
+
+set_source_files_properties(monitor/view/empty-state-no-video.png PROPERTIES QT_RESOURCE_ALIAS "empty-state-no-video.png")
+qt_add_resources(kdenliveLib monitor_empty_state
+    PREFIX "/qt/qml/org/kde/kdenlive"
+    FILES monitor/view/empty-state-no-video.png
 )
 
 qt_add_resources(kdenlive_extra_SRCS icons.qrc uiresources.qrc)
@@ -385,4 +392,3 @@ add_dependencies(kdenlive all_qmllint)
 
 ecm_finalize_qml_module(kdenliveLib
     DESTINATION ${KDE_INSTALL_QMLDIR})
-

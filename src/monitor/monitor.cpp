@@ -6,6 +6,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 
 #include "monitor.h"
 #include "bin/bin.h"
+#include "bin/projectitemmodel.h"
 #include "bin/projectclip.h"
 #include "capture/mediacapture.h"
 #include "core.h"
@@ -3204,6 +3205,26 @@ void Monitor::setProducer(const QUuid uuid, std::shared_ptr<Mlt::Producer> produ
         m_displayedUuid = uuid;
     }
     m_glMonitor->setProducer(std::move(producer), isActive() && isVisible(), pos);
+    if (m_id == Kdenlive::ProjectMonitor && m_glMonitor->rootObject()) {
+        bool hasVideo = false;
+        if (auto *timeline = pCore->window()->getCurrentTimeline()) {
+            const auto model = timeline->model();
+            for (int trackId : model->getTracksIds(false)) {
+                const auto clips = model->getItemsInRange(trackId, 0, -1, false);
+                for (int clipId : clips) {
+                    const auto clip = pCore->projectItemModel()->getClipByBinID(model->getClipBinId(clipId));
+                    if (clip && clip->clipType() != ClipType::Audio && clip->clipType() != ClipType::Unknown) {
+                        hasVideo = true;
+                        break;
+                    }
+                }
+                if (hasVideo) {
+                    break;
+                }
+            }
+        }
+        m_glMonitor->rootObject()->setProperty("showNoVideoImage", !hasVideo);
+    }
 }
 
 void Monitor::reconfigure()

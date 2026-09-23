@@ -116,7 +116,7 @@ Rectangle {
         width: K.UiUtils.baseSizeMedium
         height: width
         radius: width / 2
-        color: keyframe.model.active ? 'red' : keyframe.model.selected ? 'orange' : (kf1MouseArea.containsMouse || kf1MouseArea.pressed) ? activePalette.text : keyframe.timeline.videoColor
+        color: (keyframe.model.active || keyframe.model.selected) ? activePalette.highlight : (kf1MouseArea.containsMouse || kf1MouseArea.pressed) ? activePalette.text : keyframe.timeline.videoColor
         border.color: kf1MouseArea.containsMouse || kf1MouseArea.pressed ? activePalette.highlight : activePalette.text
 
         MouseArea {

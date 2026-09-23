@@ -5479,7 +5479,7 @@ QColor TimelineController::selectionColor() const
 {
     KColorScheme scheme(QApplication::palette().currentColorGroup(), KColorScheme::Complementary);
     if (m_model && m_model->singleSelectionMode()) {
-        return Qt::red;
+        return QApplication::palette().highlight().color();
     }
     return scheme.foreground(KColorScheme::NeutralText).color();
 }

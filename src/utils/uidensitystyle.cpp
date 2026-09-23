@@ -7,6 +7,8 @@
 
 #include <QApplication>
 #include <QLayout>
+#include <QPainter>
+#include <QStyleOptionTab>
 #include <QWidget>
 
 UiDensityStyle::UiDensityStyle(const QString &baseStyle, Density density)
@@ -102,6 +104,29 @@ QSize UiDensityStyle::sizeFromContents(ContentsType type, const QStyleOption *op
         break;
     }
     return size.expandedTo(QSize(1, 1));
+}
+
+void UiDensityStyle::drawControl(ControlElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget) const
+{
+    if (element == CE_TabBarTabShape && option && (option->state & State_Selected)) {
+        const QColor accent = option->palette.color(QPalette::Highlight);
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(accent);
+        painter->drawRoundedRect(option->rect.adjusted(1, 1, -1, -1), 3, 3);
+        painter->restore();
+        return;
+    }
+    if (element == CE_TabBarTabLabel && option && (option->state & State_Selected)) {
+        auto *tabOption = static_cast<const QStyleOptionTab *>(option);
+        QStyleOptionTab adjusted(*tabOption);
+        adjusted.palette.setColor(QPalette::WindowText, adjusted.palette.color(QPalette::HighlightedText));
+        adjusted.palette.setColor(QPalette::ButtonText, adjusted.palette.color(QPalette::HighlightedText));
+        QProxyStyle::drawControl(element, &adjusted, painter, widget);
+        return;
+    }
+    QProxyStyle::drawControl(element, option, painter, widget);
 }
 
 void applyUiDensity(int density)

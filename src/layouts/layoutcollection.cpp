@@ -26,7 +26,8 @@ void LayoutCollection::initTranslations()
     // Ensure we have a reference to the translated names
     QStringList translations = {i18nc("Short layout name for logging interface", "Logging"), i18nc("Short layout name for editing interface", "Editing"),
                                 i18nc("Short layout name for audio interface", "Audio"), i18nc("Short layout name for effects interface", "Effects"),
-                                i18nc("Short layout name for color grading interface", "Color")};
+                                i18nc("Short layout name for color grading interface", "Color"),
+                                i18nc("Short layout name for compact editing interface", "Compact Editing")};
 }
 
 void LayoutCollection::addLayout(const LayoutInfo &layout)
@@ -191,6 +192,15 @@ void LayoutCollection::loadLayouts()
     if (previousOrder.isEmpty()) {
         // Default layout order
         previousOrder = KdenliveSettings::defaultLayoutsOrderValue();
+    }
+
+    // Introduce the new preset once for existing installations, while allowing
+    // users to subsequently remove or reorder it like any other default layout.
+    if (!KdenliveSettings::compactEditingLayoutAdded() && foundlayouts.contains(QStringLiteral("compact_editing"))) {
+        if (!previousOrder.contains(QStringLiteral("compact_editing"))) {
+            previousOrder.insert(previousOrder.indexOf(QStringLiteral("editing")) + 1, QStringLiteral("compact_editing"));
+        }
+        KdenliveSettings::setCompactEditingLayoutAdded(true);
     }
 
     // Now load the layouts from the entries

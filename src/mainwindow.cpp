@@ -1133,6 +1133,7 @@ bool MainWindow::queryClose()
     // WARNING: According to KMainWindow::queryClose documentation we are not supposed to close the document here?
     KDDockWidgets::LayoutSaver dockLayout(KDDockWidgets::RestoreOption_AbsoluteFloatingDockWindows);
     KdenliveSettings::setKdockLayout(QString(dockLayout.serializeLayout()));
+    KdenliveSettings::setCompactMonitorLayout(m_projectMonitor->compactPresentation());
     // setAutoSaveSettings(QStringLiteral("MainWindow"), false);
     if (!pCore->projectManager()->closeCurrentDocument(true, true)) {
         return false;

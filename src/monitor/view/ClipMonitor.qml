@@ -40,6 +40,7 @@ Item {
     property bool showMarkers: false
     property bool showTimecode: false
     property bool showFps: false
+    property bool compactPresentation: false
     // Display hover audio thumbnails overlay
     property bool showAudiothumb: false
     property bool showClipJobs: false
@@ -204,7 +205,7 @@ Item {
                 enabled: !cursorArea.containsMouse
                 dragButtonsVisible: root.inLowerThird
                 dirty: !root.controller.audioSynced
-                visible: isAudioClip || ((K.KdenliveSettings.alwaysShowMonitorAudio || root.showAudiothumb) && (root.controller.clipType === K.ClipType.AV || root.controller.clipHasAV))
+                visible: isAudioClip || (!root.compactPresentation && (K.KdenliveSettings.alwaysShowMonitorAudio || root.showAudiothumb) && (root.controller.clipType === K.ClipType.AV || root.controller.clipHasAV))
             }
             Menu {
                 id: contextMenu
@@ -237,7 +238,7 @@ Item {
                 border.color: clipNameLabel.hovered ? "#000000" : "transparent"
                 border.width: 1
                 radius: 2
-                visible: root.controller.clipName != ""
+                visible: !root.compactPresentation && root.controller.clipName != ""
                 ToolButton {
                     id: clipNameLabel
                     hoverEnabled: true
@@ -356,7 +357,7 @@ Item {
                     left: parent.left
                     top: parent.top
                 }
-                visible: Math.abs(root.controller.speed) > 1
+                visible: !root.compactPresentation && Math.abs(root.controller.speed) > 1
                 text: "x" + root.controller.speed
                 color: "white"
                 background: Rectangle {

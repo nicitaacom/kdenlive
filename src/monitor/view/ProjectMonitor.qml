@@ -32,6 +32,7 @@ Item {
     property bool showMarkers: false
     property bool showTimecode: false
     property bool showFps: false
+    property bool compactPresentation: false
     property bool showAudiothumb: false
     property double offsetx : 0
     property double offsety : 0
@@ -188,7 +189,7 @@ Item {
                     left: parent.left
                     top: parent.top
                 }
-                visible: Math.abs(root.controller.speed) > 1
+                visible: !root.compactPresentation && Math.abs(root.controller.speed) > 1
                 text: "x" + root.controller.speed
                 color: "white"
                 background: Rectangle {

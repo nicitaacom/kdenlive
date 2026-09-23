@@ -54,6 +54,7 @@ private Q_SLOTS:
 private:
     /** @brief Populates the "load layout" menu. */
     void initializeLayouts();
+    void applyMonitorPresentation(bool compact);
     /** @brief Updates the autosave icon with highlight color. */
     void updateAutosaveIcon();
     QWidget *m_container;

@@ -12,6 +12,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "layouts/layoutmanagerdialog.h"
 #include "layouts/layoutswitcher.h"
 #include "mainwindow.h"
+#include "monitor/monitor.h"
+#include "monitor/monitormanager.h"
 
 #include <KMessageBox>
 #include <QButtonGroup>
@@ -222,23 +224,26 @@ bool LayoutManagement::slotLoadLayout(LayoutInfo layout, bool onlyIfNoPrevious)
         return false;
     }
 
-    // Set as current layout
-    m_currentLayoutId = layout.internalId;
-
     // Parse layout data
     KDDockWidgets::LayoutSaver dockLayout(KDDockWidgets::RestoreOption_RelativeToMainWindow);
-    bool restore = false;
+    QString path;
     if (pCore->isVertical() && !layout.verticalPath.isEmpty()) {
-        restore = dockLayout.restoreFromFile(layout.verticalPath);
+        path = layout.verticalPath;
     } else if (!layout.path.isEmpty()) {
-        restore = dockLayout.restoreFromFile(layout.path);
+        path = layout.path;
     } else {
-        restore = dockLayout.restoreFromFile(layout.verticalPath);
+        path = layout.verticalPath;
     }
+    QFile file(path);
+    const QByteArray data = file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+    const bool restore = dockLayout.restoreLayout(data);
     if (!restore) {
         pCore->displayBinMessage(i18n("The layout %1 could not be restored, should be removed and recreated.", layout.displayName), KMessageWidget::Warning);
         return false;
     }
+    const QJsonObject info = QJsonDocument::fromJson(data).object().value(QStringLiteral("kdenliveInfo")).toArray().first().toObject();
+    applyMonitorPresentation(info.value(QStringLiteral("compactMonitorPresentation")).toBool());
+    m_currentLayoutId = layout.internalId;
     m_firstLayoutLoaded = true;
     m_layoutSwitcher->setCurrentLayout(layout.internalId);
     if (!KdenliveSettings::showtitlebars()) {
@@ -273,13 +278,21 @@ bool LayoutManagement::slotLoadLayoutFromData(const QString &layoutData, bool on
         return false;
     }
     // Loaded a layout from Kdenlive settings or document
-    m_currentLayoutId.clear();
-    m_layoutSwitcher->setCurrentLayout(QString());
+    const bool compact = onlyIfNoPrevious && !m_firstLayoutLoaded && KdenliveSettings::compactMonitorLayout();
+    applyMonitorPresentation(compact);
+    m_currentLayoutId = compact ? QStringLiteral("compact_editing") : QString();
+    m_layoutSwitcher->setCurrentLayout(m_currentLayoutId);
     if (!KdenliveSettings::showtitlebars() && m_firstLayoutLoaded) {
         Q_EMIT pCore->hideBars(!KdenliveSettings::showtitlebars());
     }
     m_firstLayoutLoaded = true;
     return true;
+}
+
+void LayoutManagement::applyMonitorPresentation(bool compact)
+{
+    pCore->monitorManager()->clipMonitor()->setCompactPresentation(compact);
+    pCore->monitorManager()->projectMonitor()->setCompactPresentation(compact);
 }
 
 void LayoutManagement::slotSaveLayout()
@@ -325,6 +338,7 @@ void LayoutManagement::slotSaveLayout()
     kdenliveData.insert(QLatin1String("displayName"), QJsonValue(saveName));
     kdenliveData.insert(QLatin1String("layoutVersion"), QJsonValue(1));
     kdenliveData.insert(QLatin1String("vertical"), QJsonValue(pCore->isVertical()));
+    kdenliveData.insert(QLatin1String("compactMonitorPresentation"), pCore->monitorManager()->projectMonitor()->compactPresentation());
     info.push_back(kdenliveData);
     bool ok;
     if (doc.isObject()) {

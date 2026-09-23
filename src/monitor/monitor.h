@@ -194,6 +194,9 @@ public:
     void applyTimecodeDisplayStyling();
     /** @brief Audio thumbnail is outdated, inform view */
     void markAudioDirty(bool dirty);
+    /** @brief Override monitor presentation for a workspace without changing user preferences. */
+    void setCompactPresentation(bool compact);
+    bool compactPresentation() const { return m_compactPresentation; }
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -260,6 +263,14 @@ private:
     bool m_loopClipTransition;
     GenTime getSnapForPos(bool previous);
     QToolBar *m_toolbar;
+    bool m_compactPresentation{false};
+    float m_normalZoom{1.0f};
+    int m_normalLayoutSpacing{0};
+    QList<QAction *> m_normalToolbarActions;
+    QList<QAction *> m_compactToolbarActions;
+    QList<QAction *> m_compactMenuActions;
+    QMap<QAction *, QMenu *> m_compactWidgetMenus;
+    QMenu *m_positionMenu{nullptr};
     QToolBar *m_trimmingbar;
     QAction *m_oneLess;
     QAction *m_oneMore;

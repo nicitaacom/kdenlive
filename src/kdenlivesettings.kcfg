@@ -1050,7 +1050,15 @@
     </entry>
     <entry name="layoutsOrder" type="StringList">
       <label>Project layout order</label>
-      <default>logging,editing,audio,effects,color</default>
+      <default>logging,editing,compact_editing,audio,effects,color</default>
+    </entry>
+    <entry name="compactEditingLayoutAdded" type="Bool">
+      <label>Whether the Compact Editing preset has been added to the layout selector.</label>
+      <default>false</default>
+    </entry>
+    <entry name="compactMonitorLayout" type="Bool">
+      <label>Compact monitor presentation for the saved dock layout.</label>
+      <default>false</default>
     </entry>
 
     <entry name="showdescriptioncolumn" type="Bool">

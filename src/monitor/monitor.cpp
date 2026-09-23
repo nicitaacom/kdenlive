@@ -283,7 +283,7 @@ Monitor::Monitor(Kdenlive::MonitorId id, MonitorManager *manager, QWidget *paren
     });
     scalingAction->setFrame(false);
     scalingAction->setFont(QFontDatabase::systemFont(QFontDatabase::SmallestReadableFont));
-    m_toolbar->addWidget(scalingAction);
+    QAction *resolutionWidgetAction = m_toolbar->addWidget(scalingAction);
     m_toolbar->addSeparator();
 
     if (id == Kdenlive::ClipMonitor) {
@@ -413,7 +413,7 @@ Monitor::Monitor(Kdenlive::MonitorId id, MonitorManager *manager, QWidget *paren
 
     playButton->setMenu(m_playMenu);
     playButton->setPopupMode(QToolButton::MenuButtonPopup);
-    m_toolbar->addWidget(playButton);
+    QAction *playWidgetAction = m_toolbar->addWidget(playButton);
 
     // Per monitor forward action
     QAction *forward = new QAction(QIcon::fromTheme(QStringLiteral("media-seek-forward")), i18n("Forward"), this);
@@ -499,11 +499,11 @@ Monitor::Monitor(Kdenlive::MonitorId id, MonitorManager *manager, QWidget *paren
     m_toolbar->addAction(manager->getAction(QStringLiteral("monitor_editmode")));
 
     m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_timePos);
+    QAction *positionWidgetAction = m_toolbar->addWidget(m_timePos);
     m_toolbar->addAction(m_configMenuAction);
     m_toolbar->addSeparator();
     m_audioMeterWidget = new MonitorAudioLevel(this);
-    m_toolbar->addWidget(m_audioMeterWidget);
+    QAction *audioWidgetAction = m_toolbar->addWidget(m_audioMeterWidget);
     if (!m_audioMeterWidget->isValid) {
         KdenliveSettings::setMonitoraudio(0x01);
         m_audioMeterWidget->setVisibility(false);
@@ -513,6 +513,35 @@ Monitor::Monitor(Kdenlive::MonitorId id, MonitorManager *manager, QWidget *paren
             connect(m_audioMeterWidget, &MonitorAudioLevel::audioLevelsAvailable, pCore.get(), &Core::audioLevelsAvailable);
         }
     }
+
+    // Move the existing widget actions into menus in the compact workspace. Keeping
+    // the same widgets preserves position editing, scaling and audio connections.
+    m_normalToolbarActions = m_toolbar->actions();
+    m_compactToolbarActions = {rewind, playWidgetAction, forward, m_configMenuAction};
+    auto addCompactWidgetMenu = [this](QAction *action, const QString &title) {
+        auto *menu = new QMenu(title, m_configMenuAction->menu());
+        m_configMenuAction->menu()->addMenu(menu);
+        m_compactWidgetMenus.insert(action, menu);
+        m_compactMenuActions.append(menu->menuAction());
+        menu->menuAction()->setVisible(false);
+        return menu;
+    };
+    m_positionMenu = addCompactWidgetMenu(positionWidgetAction, i18n("Position"));
+    addCompactWidgetMenu(resolutionWidgetAction, i18n("Preview Resolution"));
+    addCompactWidgetMenu(audioWidgetAction, i18n("Audio Levels"));
+    if (id == Kdenlive::ClipMonitor) {
+        addCompactWidgetMenu(m_streamAction, i18n("Audio Streams"));
+    }
+    auto *controlsMenu = new QMenu(i18n("Monitor Controls"), m_configMenuAction->menu());
+    for (QAction *action : std::as_const(m_normalToolbarActions)) {
+        if (!action->isSeparator() && !m_compactToolbarActions.contains(action) && !m_compactWidgetMenus.contains(action)) {
+            controlsMenu->addAction(action);
+        }
+    }
+    controlsMenu->addMenu(m_playMenu);
+    m_configMenuAction->menu()->addMenu(controlsMenu);
+    m_compactMenuActions.append(controlsMenu->menuAction());
+    controlsMenu->menuAction()->setVisible(false);
 
     // Trimming tool bar buttons
     m_trimmingbar = new QToolBar(this);
@@ -739,6 +768,7 @@ void Monitor::setupMenu(QMenu *goMenu, QMenu *overlayMenu, QAction *playZone, QA
 
     if (overlayMenu) {
         m_contextMenu->addMenu(overlayMenu);
+        m_configMenuAction->menu()->addMenu(overlayMenu);
     }
 
     m_configMenuAction->addAction(m_monitorManager->getAction("mlt_scrub"));
@@ -2015,7 +2045,7 @@ void Monitor::slotSwitchPlay()
     } else if (m_id == Kdenlive::ProjectMonitor) {
         showDropped = KdenliveSettings::displayProjectMonitorInfo() & Monitor::PlaybackFpsOverlay;
     }
-    if (showDropped) {
+    if (showDropped && !m_compactPresentation) {
         m_glMonitor->resetDrops();
         if (play) {
             m_droppedTimer.start();
@@ -2442,7 +2472,7 @@ void Monitor::switchMonitorInfo(int code)
     updateQmlDisplay(currentOverlay);
     if (code == Monitor::InfoOverlay) {
         // Hide/show ruler
-        m_glMonitor->switchRuler(currentOverlay & Monitor::InfoOverlay);
+        m_glMonitor->switchRuler(m_compactPresentation || (currentOverlay & Monitor::InfoOverlay));
     }
 }
 
@@ -2948,7 +2978,7 @@ void Monitor::slotSwitchTrimming(bool enable)
         loadQmlScene(SceneType::MonitorSceneDefault);
         m_trimmingbar->setVisible(false);
         m_toolbar->setVisible(true);
-        m_glMonitor->switchRuler(KdenliveSettings::displayClipMonitorInfo() & Monitor::InfoOverlay);
+        m_glMonitor->switchRuler(m_compactPresentation || (KdenliveSettings::displayClipMonitorInfo() & Monitor::InfoOverlay));
     }
 }
 
@@ -3043,12 +3073,52 @@ void Monitor::displayAudioMonitor(bool isActive)
     }
 }
 
+void Monitor::setCompactPresentation(bool compact)
+{
+    if (m_compactPresentation == compact) {
+        return;
+    }
+    m_compactPresentation = compact;
+    m_configMenuAction->menu()->close();
+    if (compact) {
+        m_normalZoom = m_glMonitor->zoom();
+        m_normalLayoutSpacing = layout()->spacing();
+    }
+    layout()->setSpacing(compact ? 0 : m_normalLayoutSpacing);
+    m_glMonitor->setZoom(compact ? 1.0f : m_normalZoom);
+    // Remove widget actions from their old host before inserting them in the new
+    // one. Hiding shared QActions would also hide them in menus and shortcuts.
+    m_toolbar->clear();
+    for (auto it = m_compactWidgetMenus.cbegin(); it != m_compactWidgetMenus.cend(); ++it) {
+        if (compact) {
+            it.value()->addAction(it.key());
+        } else {
+            it.value()->removeAction(it.key());
+        }
+    }
+    m_toolbar->addActions(compact ? m_compactToolbarActions : m_normalToolbarActions);
+    for (QAction *action : std::as_const(m_compactMenuActions)) {
+        action->setVisible(compact);
+    }
+    const int overlay = m_id == Kdenlive::ClipMonitor ? KdenliveSettings::displayClipMonitorInfo() : KdenliveSettings::displayProjectMonitorInfo();
+    updateQmlDisplay(overlay);
+    m_glMonitor->switchRuler(compact || (overlay & Monitor::InfoOverlay));
+    displayAudioMonitor(isActive());
+}
+
 void Monitor::updateQmlDisplay(int currentOverlay)
 {
     if (!m_glMonitor->rootObject()) {
         return;
     }
-    m_glMonitor->rootObject()->setVisible((currentOverlay & Monitor::InfoOverlay) != 0);
+    if (m_compactPresentation) {
+        // Keep the ruler and editing scene alive; only suppress informational overlays.
+        currentOverlay = Monitor::InfoOverlay;
+    }
+    m_glMonitor->rootObject()->setProperty("compactPresentation", m_compactPresentation);
+    if (m_qmlManager->sceneType() == SceneType::MonitorSceneDefault) {
+        m_glMonitor->rootObject()->setVisible((currentOverlay & Monitor::InfoOverlay) != 0);
+    }
     m_glMonitor->rootObject()->setProperty("showMarkers", currentOverlay & Monitor::MarkersOverlay);
     bool showDropped = currentOverlay & Monitor::PlaybackFpsOverlay;
     m_glMonitor->rootObject()->setProperty("showFps", showDropped);
@@ -3271,6 +3341,9 @@ void Monitor::setTimecodeOffset(int offset)
 
 void Monitor::focusTimecode()
 {
+    if (m_compactPresentation) {
+        m_positionMenu->popup(m_toolbar->mapToGlobal(QPoint(0, m_toolbar->height())));
+    }
     m_timePos->setFocus();
     m_timePos->selectAll();
 }

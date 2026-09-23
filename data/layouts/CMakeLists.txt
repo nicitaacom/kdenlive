@@ -4,9 +4,9 @@
 INSTALL (FILES
     audio.json
     color.json
+    compact_editing.json
     editing.json
     editing_vertical.json
     effects.json
     logging.json
 DESTINATION ${KDE_INSTALL_DATADIR}${DATA_INSTALL_PREFIX}/layouts)
-

@@ -11,10 +11,10 @@ set(kdenlive_SRCS
   utils/qcolorutils.cpp
   utils/thumbnailcache.cpp
   utils/timecode.cpp
+  utils/uidensitystyle.cpp
   utils/uiutils.cpp
   utils/qstringutils.cpp
   utils/styledspinbox.cpp
   PARENT_SCOPE
 )
-
 

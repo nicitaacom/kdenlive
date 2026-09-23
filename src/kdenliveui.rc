@@ -346,6 +346,7 @@
       <Separator/>
       <Action name="themes_menu"/>
       <Action name="styles_menu"/>
+      <Action name="ui_density_menu"/>
     </Menu>
     <Menu name="help">
       <Action name="copy_debuginfo"/>

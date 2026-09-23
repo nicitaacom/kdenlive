@@ -53,6 +53,10 @@
     </entry>
   </group>
   <group name="misc">
+    <entry name="uiDensity" type="Int">
+      <label>Interface spacing density.</label>
+      <default>0</default>
+    </entry>
     <entry name="cleanCacheMonths" type="Int">
       <label>Number of months to discard cache data.</label>
       <default>6</default>

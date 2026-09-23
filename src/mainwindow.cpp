@@ -68,6 +68,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "timeline2/view/timelinecontroller.h"
 #include "timeline2/view/timelinetabs.hpp"
 #include "timeline2/view/timelinewidget.h"
+#include "utils/uidensitystyle.h"
 #include "titler/titlewidget.h"
 #include "transitions/transitionlist/view/transitionlistwidget.hpp"
 #include "transitions/transitionsrepository.hpp"
@@ -547,6 +548,24 @@ void MainWindow::init()
         }
     }
     addAction(QStringLiteral("styles_menu"), stylesAction);
+
+    auto *densityMenu = new KActionMenu(i18n("Configure paddings"), this);
+    auto *densityGroup = new QActionGroup(densityMenu);
+    densityGroup->setExclusive(true);
+    const QStringList densityNames = {i18n("Default"), i18n("Compact"), i18n("Minimalist")};
+    for (int density = 0; density < densityNames.size(); ++density) {
+        QAction *action = densityMenu->menu()->addAction(densityNames.at(density));
+        action->setCheckable(true);
+        action->setData(density);
+        densityGroup->addAction(action);
+        action->setChecked(KdenliveSettings::uiDensity() == density);
+    }
+    connect(densityGroup, &QActionGroup::triggered, this, [](QAction *action) {
+        const int density = action->data().toInt();
+        KdenliveSettings::setUiDensity(density);
+        applyUiDensity(density);
+    });
+    actionCollection()->addAction(QStringLiteral("ui_density_menu"), densityMenu);
 
     m_mixerDock = addDock(i18n("Audio Mixer"), QStringLiteral("mixer"), pCore->mixer(), KDDockWidgets::Location_None, m_effectStackDock);
     m_mixerDock->setWhatsThis(xi18nc("@info:whatsthis", "Toggles the audio mixer panel/widget."));

@@ -117,7 +117,8 @@ LayoutManagement::LayoutManagement(QObject *parent)
     slotUpdatePalette();
     connect(pCore.get(), &Core::updatePalette, this, &LayoutManagement::slotUpdatePalette);
     // TODO: Setting up right corner of the menu bar should also probably sit elsewhere. Wouldn't expect to find this in the layout management class.
-    main->menuBar()->setCornerWidget(m_container, Qt::TopRightCorner);
+    main->menuBar()->setCornerWidget(nullptr, Qt::TopRightCorner);
+    m_container->hide();
 
     m_autosaveDisplayTimer.setInterval(2000);
     m_autosaveDisplayTimer.setSingleShot(true);

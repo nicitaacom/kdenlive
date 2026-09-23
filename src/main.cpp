@@ -13,6 +13,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "dialogs/wizard.h"
 #include "kdenlive_debug.h"
 #include "kdenlivesettings.h"
+#include "utils/uidensitystyle.h"
 // Required for MacOS definition of MLT_LC_NAME
 #include "lib/localeHandling.h"
 #include "render/renderrequest.h"
@@ -256,6 +257,7 @@ int main(int argc, char *argv[])
 
     // trigger initialisation of proper application style
     KStyleManager::initStyle();
+    applyUiDensity(KdenliveSettings::uiDensity());
 
     // Try to detect package type
     LinuxPackageType packageType = getPackageType();

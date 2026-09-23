@@ -40,6 +40,7 @@ Item {
     property bool showMarkers: false
     property bool showTimecode: false
     property bool showFps: false
+    property bool showEmptyState: false
     property bool compactPresentation: false
     // Display hover audio thumbnails overlay
     property bool showAudiothumb: false
@@ -644,4 +645,5 @@ Item {
             }
         }
     }
+    EmptyPreview { showEmptyState: root.showEmptyState }
 }

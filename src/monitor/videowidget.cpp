@@ -110,6 +110,11 @@ VideoWidget::VideoWidget(int id, QObject *parent)
     quickWindow()->setPersistentGraphics(true);
     quickWindow()->setPersistentSceneGraph(true);
     setResizeMode(QQuickWidget::SizeRootObjectToView);
+    connect(this, &QQuickWidget::statusChanged, this, [this](QQuickWidget::Status status) {
+        if (status == QQuickWidget::Ready) {
+            refreshClearColor();
+        }
+    });
 
     m_refreshTimer.setSingleShot(true);
     m_refreshTimer.setInterval(10);
@@ -297,6 +302,9 @@ void VideoWidget::setBlackBackgroundForEmptyPreview(bool black)
 void VideoWidget::refreshClearColor()
 {
     setClearColor(m_blackBackgroundForEmptyPreview ? QColor(Qt::black) : KdenliveSettings::window_background());
+    if (rootObject()) {
+        rootObject()->setProperty("showEmptyState", m_blackBackgroundForEmptyPreview);
+    }
 }
 
 void VideoWidget::releaseAnalyse()

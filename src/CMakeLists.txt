@@ -146,6 +146,7 @@ ecm_target_qml_sources(kdenliveLib
     monitor/view/AudioView.qml
     monitor/view/AudioZoomBar.qml
     monitor/view/ProjectMonitor.qml
+    monitor/view/EmptyPreview.qml
     monitor/view/Countdown.qml
     monitor/view/ClipMonitor.qml
     monitor/view/MonitorAutomask.qml

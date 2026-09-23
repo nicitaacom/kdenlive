@@ -32,6 +32,7 @@ Item {
     property bool showMarkers: false
     property bool showTimecode: false
     property bool showFps: false
+    property bool showEmptyState: false
     property bool compactPresentation: false
     property bool showAudiothumb: false
     property double offsetx : 0
@@ -294,4 +295,5 @@ Item {
         monitorController: root.controller
         duration: root.duration
     }
+    EmptyPreview { showEmptyState: root.showEmptyState }
 }

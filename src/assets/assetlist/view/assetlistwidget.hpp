@@ -123,6 +123,8 @@ protected:
     AssetListView *m_effectsIcon;
     QToolBar *m_toolbar;
     QStackedWidget *m_effectsView;
+    QWidget *m_emptyResults;
+    int m_assetViewIndex{0};
     QMenu *m_contextMenu;
     QLineEdit *m_searchLine;
     std::shared_ptr<AssetTreeModel> m_model;

@@ -20,10 +20,13 @@
 #include <QActionGroup>
 #include <QDrag>
 #include <QFontDatabase>
+#include <QIcon>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QLineEdit>
 #include <QListView>
 #include <QMenu>
+#include <QPalette>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStandardPaths>
@@ -350,6 +353,42 @@ AssetListWidget::AssetListWidget(bool isEffect, QAction *includeList, QAction *t
     m_effectsView->addWidget(m_effectsTree);
     m_effectsView->addWidget(m_effectsIcon);
 
+    // Keep an explicit, compact empty state in the same area as the results.
+    // The remembered view index allows users to return to their preferred view
+    // immediately when they clear or refine the search.
+    m_emptyResults = new QWidget(m_effectsView);
+    auto *emptyLayout = new QVBoxLayout(m_emptyResults);
+    emptyLayout->addStretch(1);
+    auto *emptyIcon = new QLabel(m_emptyResults);
+    emptyIcon->setAlignment(Qt::AlignCenter);
+    QIcon searchIcon = QIcon::fromTheme(QStringLiteral("search"));
+    if (searchIcon.isNull()) {
+        searchIcon = QIcon::fromTheme(QStringLiteral("edit-find"));
+    }
+    if (searchIcon.isNull()) {
+        searchIcon = QIcon(QStringLiteral(":/pics/search.svg"));
+    }
+    emptyIcon->setPixmap(searchIcon.pixmap(48, 48));
+    emptyLayout->addWidget(emptyIcon);
+    auto *notFound = new QLabel(i18n("Not found"), m_emptyResults);
+    notFound->setAlignment(Qt::AlignCenter);
+    QFont notFoundFont(QStringLiteral("Arial"));
+    notFoundFont.setPixelSize(14);
+    notFound->setFont(notFoundFont);
+    emptyLayout->addWidget(notFound);
+    auto *tryDifferent = new QLabel(i18n("Try to use different wording"), m_emptyResults);
+    tryDifferent->setAlignment(Qt::AlignCenter);
+    QFont tryDifferentFont(QStringLiteral("Arial"));
+    tryDifferentFont.setPixelSize(11);
+    tryDifferent->setFont(tryDifferentFont);
+    QPalette emptyPalette = tryDifferent->palette();
+    emptyPalette.setColor(QPalette::WindowText, tryDifferent->palette().color(QPalette::Disabled, QPalette::WindowText));
+    tryDifferent->setPalette(emptyPalette);
+    emptyLayout->addWidget(tryDifferent);
+    emptyLayout->addStretch(1);
+    m_effectsView->addWidget(m_emptyResults);
+    m_emptyResults->hide();
+
     m_viewSplitter = new QSplitter(Qt::Vertical, this);
     m_viewSplitter->addWidget(m_effectsView);
     m_textEdit = new QTextBrowser(this);
@@ -490,6 +529,8 @@ void AssetListWidget::setFilterName(const QString &pattern)
     QItemSelectionModel *sel = m_effectsTree->selectionModel();
     QModelIndex current = m_proxyModel->getModelIndex(sel->currentIndex());
     m_proxyModel->setFilterName(!pattern.isEmpty(), pattern);
+    const bool noResults = !pattern.isEmpty() && m_proxyModel->rowCount() == 0;
+    m_effectsView->setCurrentWidget(noResults ? m_emptyResults : (m_assetViewIndex == 1 ? static_cast<QWidget *>(m_effectsIcon) : m_effectsTree));
     if (!pattern.isEmpty()) {
         QVariantList mapped = m_proxyModel->getCategories();
         for (auto &ix : mapped) {
@@ -648,7 +689,9 @@ void AssetListWidget::toggleViewMode(bool checked)
 {
     // Switch between tree view (index 0) and icon view (index 1)
     int newIndex = checked ? 1 : 0;
-    m_effectsView->setCurrentIndex(newIndex);
+    m_assetViewIndex = newIndex;
+    const bool noResults = m_proxyModel && !m_searchLine->text().isEmpty() && m_proxyModel->rowCount() == 0;
+    m_effectsView->setCurrentWidget(noResults ? m_emptyResults : m_effectsView->widget(newIndex));
 
     // Sync selection between views
     if (newIndex == 0) {
@@ -676,7 +719,7 @@ void AssetListWidget::toggleViewMode(bool checked)
 
 bool AssetListWidget::isIconView() const
 {
-    return m_effectsView->currentIndex() == 1;
+    return m_assetViewIndex == 1;
 }
 
 void AssetListWidget::setItemFavorite()

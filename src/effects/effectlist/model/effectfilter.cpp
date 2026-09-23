@@ -11,6 +11,10 @@
 #include "kdenlivesettings.h"
 #include <KLocalizedString>
 #include <QDomElement>
+#include <QRegularExpression>
+#include <QStringList>
+
+#include <algorithm>
 
 EffectFilter::EffectFilter(QObject *parent)
     : AssetFilter(parent)
@@ -28,8 +32,23 @@ bool EffectFilter::filterName(const std::shared_ptr<TreeItem> &item) const
         return false;
     }
     const QDomElement effect = EffectsRepository::get()->getXml(id);
-    const QString aliases = normalizeText(effect.firstChildElement(QStringLiteral("aliases")).text());
-    return aliases.contains(normalizeText(m_name_value), Qt::CaseInsensitive);
+    // Treat aliases as independent search terms, ignoring punctuation and
+    // whitespace in both terms and queries. This makes vendor spellings such
+    // as S_Shake, s-shake, and s shake resolve to the same effect.
+    auto compact = [](const QString &text) {
+        QString value = normalizeText(text);
+        value.remove(QRegularExpression(QStringLiteral("\\s+")));
+        return value;
+    };
+    const QString query = compact(m_name_value);
+    if (query.isEmpty()) {
+        return false;
+    }
+    const QString aliases = effect.firstChildElement(QStringLiteral("aliases")).text();
+    const QStringList terms = aliases.split(QRegularExpression(QStringLiteral("[;,|]")), Qt::SkipEmptyParts);
+    return std::any_of(terms.cbegin(), terms.cend(), [&query, &compact](const QString &term) {
+        return compact(term).contains(query, Qt::CaseInsensitive);
+    });
 }
 
 void EffectFilter::setFilterType(bool enabled, AssetListType::AssetType type)

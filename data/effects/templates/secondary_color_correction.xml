@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <effectgroup xmlns="https://www.kdenlive.org" id="Secondary color correction" parentIn="1">
+    <aliases>Vegas secondary color corrector; secondary color corrector</aliases>
     <effect id="mask_start-frei0r.select0r">
         <property name="filter">frei0r.select0r</property>
         <property name="disable">0</property>

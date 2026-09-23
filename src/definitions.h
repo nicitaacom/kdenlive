@@ -162,6 +162,7 @@ enum AssetType {
     VideoTransition,
     LumaTransition,
     Text,
+    Pending,
     Hidden = -1
 };
 Q_ENUM_NS(AssetType)

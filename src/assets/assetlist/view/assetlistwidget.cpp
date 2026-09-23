@@ -182,17 +182,12 @@ AssetListWidget::AssetListWidget(bool isEffect, QAction *includeList, QAction *t
     filterGroup->addAction(favEffects);
     m_toolbar->addAction(favEffects);
 
-    QAction *toggleView = nullptr;
-    if (!m_isEffect) {
-        // Icon view for effects still needs work
-        // Add view mode toggle button
-        toggleView = new QAction(this);
-        toggleView->setIcon(QIcon::fromTheme(QStringLiteral("view-list-icons")));
-        toggleView->setToolTip(i18n("Toggle between list and icon view"));
-        toggleView->setCheckable(true);
-        connect(toggleView, &QAction::triggered, this, &AssetListWidget::toggleViewMode);
-        m_toolbar->addAction(toggleView);
-    }
+    QAction *toggleView = new QAction(this);
+    toggleView->setIcon(QIcon::fromTheme(QStringLiteral("view-list-icons")));
+    toggleView->setToolTip(i18n("Toggle between list and icon view"));
+    toggleView->setCheckable(true);
+    connect(toggleView, &QAction::triggered, this, &AssetListWidget::toggleViewMode);
+    m_toolbar->addAction(toggleView);
 
     m_lay->addWidget(m_toolbar);
     QWidget *empty = new QWidget(this);
@@ -342,6 +337,10 @@ AssetListWidget::AssetListWidget(bool isEffect, QAction *includeList, QAction *t
     m_effectsIcon->setDragDropMode(QAbstractItemView::DragDrop);
     m_effectsIcon->setSpacing(10);
     m_effectsIcon->setWordWrap(true);
+    if (m_isEffect) {
+        m_effectsIcon->setIconSize(QSize(96, 54));
+        m_effectsIcon->setGridSize(QSize(128, 92));
+    }
     connect(m_effectsIcon, &QListView::doubleClicked, this, &AssetListWidget::activate);
     m_effectsIcon->installEventFilter(this);
     m_effectsIcon->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -383,11 +382,10 @@ AssetListWidget::AssetListWidget(bool isEffect, QAction *includeList, QAction *t
     // Initialize icon provider for the list view
     m_assetIconProvider = new AssetIconProvider(m_isEffect, this);
     if (m_isEffect) {
-        // Icon view for effects still needs work
-        /*if (KdenliveSettings::effectViewAsIcon()) {
+        if (KdenliveSettings::effectViewAsIcon()) {
             toggleView->setChecked(true);
             toggleViewMode(true);
-        }*/
+        }
     } else {
         if (KdenliveSettings::transitionViewAsIcon()) {
             toggleView->setChecked(true);
@@ -520,6 +518,10 @@ void AssetListWidget::activate(const QModelIndex &ix)
     if (!ix.isValid()) {
         return;
     }
+    const auto type = m_model->data(m_proxyModel->mapToSource(ix), AssetTreeModel::TypeRole).value<AssetListType::AssetType>();
+    if (type == AssetListType::AssetType::Pending) {
+        return;
+    }
     const QString assetId = m_model->data(m_proxyModel->mapToSource(ix), AssetTreeModel::IdRole).toString();
     if (assetId != QLatin1String("root")) {
         Q_EMIT activateAsset(getMimeData(assetId));
@@ -591,7 +593,7 @@ void AssetListWidget::updateAssetInfo(const QModelIndex &current, const QModelIn
             return;
         }
         auto type = m_model->data(m_proxyModel->mapToSource(current), AssetTreeModel::TypeRole).value<AssetListType::AssetType>();
-        if (!isCustomType(type)) {
+        if (!isCustomType(type) && type != AssetListType::AssetType::Pending) {
             // Add link to our documentation
             const QString link = buildLink(id, type);
             if (!description.isEmpty()) {

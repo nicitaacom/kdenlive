@@ -52,7 +52,7 @@ protected:
      * @return true if either ID or Name contains the filtered name as a
      * substring, false otherwise
      */
-    bool filterName(const std::shared_ptr<TreeItem> &item) const;
+    virtual bool filterName(const std::shared_ptr<TreeItem> &item) const;
     /** @brief Returns a copy of the input string with any characters that are
      * not letters, numbers, or spaces removed. */
     static QString normalizeText(const QString &text);

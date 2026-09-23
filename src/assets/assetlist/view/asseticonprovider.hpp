@@ -15,7 +15,7 @@ class AssetIconProvider : public QObject
 {
 public:
     explicit AssetIconProvider(bool effect, QObject *parent);
-    const QPixmap makePixmap(const QString &effectName);
+    const QPixmap makePixmap(const QString &effectName, const QString &displayName = QString(), bool motionPreview = false);
 
 private:
     QImage makeIcon(const QString &effectName);

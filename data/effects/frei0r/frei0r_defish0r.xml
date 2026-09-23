@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" LC_NUMERIC="C" tag="frei0r.defish0r" id="frei0r.defish0r">
+    <aliases>S_WarpFishEye; fisheye warp; fisheye distortion</aliases>
     <name context="Defish Effect Name">Defish</name>
     <description>Non rectilinear lens mappings</description>
     <author>Marko Cebokli</author>

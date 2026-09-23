@@ -70,6 +70,8 @@ rotate-3-way.xml
 rotation.xml
 rotoscoping.xml
 scratchlines.xml
+shake.xml
+pending_effects.xml
 sepia.xml
 shape.xml
 shear.xml

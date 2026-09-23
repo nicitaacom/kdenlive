@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<pendingeffects xmlns="https://www.kdenlive.org">
+    <pendingeffect id="pending.sapphire.blurmo_curves">
+        <name>Motion Curve Blur (Pending)</name>
+        <aliases>S_BlurMoCurves; BlurMoCurves; Sapphire BlurMoCurves; motion curve blur; motion curves blur; blur motion curves; animated motion blur; motion blur curves; motionblur</aliases>
+        <category>Pending implementations</category>
+        <description>This effect is not implemented yet. A matching renderer must sample animated center, zoom, rotation, and shifts over the shutter interval and expose shutter, exposure, and quality controls. It is listed here so searches for its Sapphire name and common terms find the pending feature; it cannot be applied.</description>
+    </pendingeffect>
+    <pendingeffect id="pending.sapphire.blur_motion">
+        <name>Motion Vector Blur (Pending)</name>
+        <aliases>S_BlurMotion; Sapphire Blur Motion; motion blur; motionblur; blur motion; motion blur effect; motion vector blur; motion-vector blur; vector blur; per-pixel motion blur</aliases>
+        <category>Pending implementations</category>
+        <description>This effect is not implemented yet. It needs a renderer that estimates image motion and blurs along those vectors. Directional Blur and Gaussian Blur are not substitutes. This searchable entry cannot be applied.</description>
+    </pendingeffect>
+    <pendingeffect id="pending.revision.rsmb">
+        <name>RE:Vision RSMB Motion Blur (Pending)</name>
+        <aliases>RSMB; RE:Vision RSMB; REVision RSMB; motion blur; motionblur; blur motion; optical flow blur; motion-vector blur</aliases>
+        <category>Pending implementations</category>
+        <description>RE:Vision RSMB is not implemented yet. It needs motion-vector blur rendering and is separate from Twixtor slow motion. This searchable entry cannot be applied.</description>
+    </pendingeffect>
+</pendingeffects>

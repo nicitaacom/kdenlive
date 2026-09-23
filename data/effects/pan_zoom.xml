@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" tag="affine" id="pan_zoom" type="video" context="nomovit">
+    <aliases>S_WarpTransform; warp transform</aliases>
     <name>Position and Zoom</name>
     <description>Adjust size and position of clip</description>
     <author>Charles Yates</author>

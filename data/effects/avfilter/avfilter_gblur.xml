@@ -2,6 +2,7 @@
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" tag="avfilter.gblur" id="avfilter.gblur">
     <name>Gaussian Blur</name>
+    <aliases>blur; gaussian blur; Vegas Gaussian Blur</aliases>
     <description>Apply Gaussian Blur filter</description>
     <author>libavfilter</author>
     <parameter type="list" name="av.steps" default="1" paramlist="1;2;3;4;5;6">

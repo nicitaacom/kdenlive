@@ -7,6 +7,7 @@
 #include "abstractmodel/treeitem.hpp"
 #include "effects/effectsrepository.hpp"
 #include "kdenlivesettings.h"
+#include "xml/xml.hpp"
 
 #include <QApplication>
 #include <QDomDocument>
@@ -35,9 +36,11 @@ std::shared_ptr<EffectTreeModel> EffectTreeModel::construct(const QString &categ
     self->rootItem = TreeItem::construct(rootData, self, true);
 
     QHash<QString, std::shared_ptr<TreeItem>> effectCategory; // category in which each effect should land.
+    QHash<QString, std::shared_ptr<TreeItem>> templateCategories;
 
     std::shared_ptr<TreeItem> miscCategory = nullptr;
     std::shared_ptr<TreeItem> audioCategory = nullptr;
+    std::shared_ptr<TreeItem> pendingCategory = nullptr;
     // We parse category file
     QDomDocument doc;
     if (!categoryFile.isEmpty() && Xml::docContentFromFile(doc, categoryFile, false)) {
@@ -81,6 +84,11 @@ std::shared_ptr<EffectTreeModel> EffectTreeModel::construct(const QString &categ
             targetCategory = effectCategory[effect.first];
         } else if (type == AssetListType::AssetType::Audio) {
             targetCategory = audioCategory;
+        } else if (type == AssetListType::AssetType::Pending) {
+            if (!pendingCategory) {
+                pendingCategory = self->rootItem->appendChild(QList<QVariant>{i18n("Pending implementations"), QStringLiteral("root")});
+            }
+            targetCategory = pendingCategory;
         }
 
         if (type == AssetListType::AssetType::Custom || type == AssetListType::AssetType::CustomAudio) {
@@ -88,6 +96,15 @@ std::shared_ptr<EffectTreeModel> EffectTreeModel::construct(const QString &categ
         } else if (type == AssetListType::AssetType::Template || type == AssetListType::AssetType::TemplateAudio ||
                    type == AssetListType::AssetType::TemplateCustom || type == AssetListType::AssetType::TemplateCustomAudio) {
             targetCategory = self->m_templateCategory;
+            const QDomElement templateXml = EffectsRepository::get()->getXml(effect.first);
+            const QString categoryName = Xml::getSubTagContent(templateXml, QStringLiteral("category")).trimmed();
+            if (!categoryName.isEmpty()) {
+                if (!templateCategories.contains(categoryName)) {
+                    templateCategories.insert(categoryName,
+                                              self->m_templateCategory->appendChild(QList<QVariant>{categoryName, QStringLiteral("root")}));
+                }
+                targetCategory = templateCategories.value(categoryName);
+            }
         }
 
         // we create the data list corresponding to this profile
@@ -210,10 +227,23 @@ void EffectTreeModel::reloadAssetMenu(QMenu *effectsMenu, KActionCategory *effec
     for (int i = 0; i < rowCount(); i++) {
         std::shared_ptr<TreeItem> item = rootItem->child(i);
         if (item->childCount() > 0) {
+            bool hasRunnableEffect = false;
+            for (int j = 0; j < item->childCount(); ++j) {
+                if (item->child(j)->dataColumn(AssetTreeModel::TypeCol).value<AssetListType::AssetType>() != AssetListType::AssetType::Pending) {
+                    hasRunnableEffect = true;
+                    break;
+                }
+            }
+            if (!hasRunnableEffect) {
+                continue;
+            }
             QMenu *catMenu = new QMenu(item->dataColumn(AssetTreeModel::NameCol).toString(), effectsMenu);
             effectsMenu->addMenu(catMenu);
             for (int j = 0; j < item->childCount(); j++) {
                 std::shared_ptr<TreeItem> child = item->child(j);
+                if (child->dataColumn(AssetTreeModel::TypeCol).value<AssetListType::AssetType>() == AssetListType::AssetType::Pending) {
+                    continue;
+                }
                 QAction *a = new QAction(i18n(child->dataColumn(AssetTreeModel::NameCol).toString().toUtf8().data()), catMenu);
                 const QString id = child->dataColumn(AssetTreeModel::IdCol).toString();
                 a->setData(id);

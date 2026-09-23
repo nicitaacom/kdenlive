@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" tag="avfilter.chromashift" id="avfilter.chromashift">
+    <aliases>S_WarpChroma; S_DistortChroma; chroma warp; chroma distortion</aliases>
     <name>Chroma Shift</name>
     <description>Shift chroma pixels horizontally and/or vertically. </description>
     <author>libavfilter</author>

@@ -7,13 +7,29 @@
 #include "abstractmodel/treeitem.hpp"
 #include "assets/assetlist/model/assettreemodel.hpp"
 #include "effecttreemodel.hpp"
+#include "effects/effectsrepository.hpp"
 #include "kdenlivesettings.h"
 #include <KLocalizedString>
+#include <QDomElement>
 
 EffectFilter::EffectFilter(QObject *parent)
     : AssetFilter(parent)
 {
     m_type_enabled = false;
+}
+
+bool EffectFilter::filterName(const std::shared_ptr<TreeItem> &item) const
+{
+    if (AssetFilter::filterName(item)) {
+        return true;
+    }
+    const QString id = item->dataColumn(AssetTreeModel::IdCol).toString();
+    if (!EffectsRepository::get()->exists(id)) {
+        return false;
+    }
+    const QDomElement effect = EffectsRepository::get()->getXml(id);
+    const QString aliases = normalizeText(effect.firstChildElement(QStringLiteral("aliases")).text());
+    return aliases.contains(normalizeText(m_name_value), Qt::CaseInsensitive);
 }
 
 void EffectFilter::setFilterType(bool enabled, AssetListType::AssetType type)
@@ -68,7 +84,7 @@ bool EffectFilter::filterType(const std::shared_ptr<TreeItem> &item) const
     }
     if (m_type_value == AssetListType::AssetType::Video) {
         return itemType == m_type_value || itemType == AssetListType::AssetType::Custom || itemType == AssetListType::Template ||
-               itemType == AssetListType::TemplateCustom;
+               itemType == AssetListType::TemplateCustom || itemType == AssetListType::Pending;
     }
     if (m_type_value == AssetListType::AssetType::Audio) {
         return itemType == m_type_value || itemType == AssetListType::AssetType::CustomAudio || itemType == AssetListType::TemplateAudio ||

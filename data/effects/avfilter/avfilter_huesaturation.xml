@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" tag="avfilter.huesaturation" id="avfilter.huesaturation">
+    <aliases>Vegas HSL adjustment; HSL adjustment</aliases>
     <name>Hue Saturation Intensity</name>
     <description>Apply hue-saturation-intensity adjustments</description>
     <author>libavfilter</author>

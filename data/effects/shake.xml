@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!DOCTYPE kpartgui>
+<effectgroup xmlns="https://www.kdenlive.org" id="kdenlive.shake" type="video">
+    <name>Shake</name>
+    <aliases>S_Shake; Sapphire Shake; screen shake; video shake; picture shake; camera shake; shake effect; jitter; handheld shake; triggered; triggered meme; meme shake</aliases>
+    <description>Animated camera shake with phase control, reflected edges, and optional camera motion blur.</description>
+    <effect id="frei0r.shake0scillate">
+        <property name="movement_amount_x">0.05</property>
+        <property name="movement_speed_x">0.5</property>
+        <property name="movement_amount_y">0.05</property>
+        <property name="movement_speed_y">0.2</property>
+        <property name="rotation_amount">0</property>
+        <property name="rotation_speed">0.2</property>
+        <property name="scale">0.1</property>
+        <property name="phase">0</property>
+        <property name="mirrored">1</property>
+    </effect>
+    <effect id="frei0r.camerashake">
+        <property name="0">0</property>
+        <property name="1">0</property>
+        <property name="2">0</property>
+        <property name="3">0</property>
+        <property name="4">0.25</property>
+        <property name="5">1</property>
+        <property name="6">0</property>
+        <property name="7">0x000000ff</property>
+    </effect>
+</effectgroup>

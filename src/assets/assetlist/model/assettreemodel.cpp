@@ -43,6 +43,9 @@ Qt::ItemFlags AssetTreeModel::flags(const QModelIndex &index) const
     if (item->dataColumn(AssetTreeModel::IdCol) == QStringLiteral("root")) {
         return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
     }
+    if (item->dataColumn(AssetTreeModel::TypeCol).value<AssetListType::AssetType>() == AssetListType::AssetType::Pending) {
+        return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
+    }
     return Qt::ItemIsDragEnabled | Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 
@@ -105,9 +108,13 @@ QVariant AssetTreeModel::data(const QModelIndex &index, int role) const
             return QIcon();
         }
         if (auto pt = item->parentItem().lock()) {
+            const auto type = item->dataColumn(AssetTreeModel::TypeCol).value<AssetListType::AssetType>();
+            const bool isTemplate = (type == AssetListType::AssetType::Template || type == AssetListType::AssetType::TemplateCustom) &&
+                                    item->dataColumn(AssetTreeModel::IdCol).toString().startsWith(QLatin1String("builtin_transition_"));
             return QIcon(m_assetIconProvider->makePixmap(pt->dataColumn(0).toString() + QLatin1String("/") +
-                                                         QString::number(item->dataColumn(AssetTreeModel::TypeCol).toInt()) + QLatin1String("/") +
-                                                         item->dataColumn(0).toString().at(0).toUpper()));
+                                                             QString::number(item->dataColumn(AssetTreeModel::TypeCol).toInt()) + QLatin1String("/") +
+                                                             item->dataColumn(0).toString().at(0).toUpper(),
+                                                         item->dataColumn(AssetTreeModel::NameCol).toString(), isTemplate));
         }
         return QIcon();
     }

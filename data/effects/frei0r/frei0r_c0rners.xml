@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" LC_NUMERIC="C" tag="frei0r.c0rners" id="frei0r.c0rners">
+    <aliases>S_WarpCornerPin; corner pin; perspective corner transform</aliases>
     <name context="Corners Effect Name">Corners</name>
     <description>Four corners geometry engine</description>
     <author>Marko Cebokli</author>

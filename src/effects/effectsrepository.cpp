@@ -63,15 +63,32 @@ void EffectsRepository::parseCustomAssetFile(const QString &file_name, std::unor
     }
 
     QDomElement base = doc.documentElement();
-    if (base.tagName() == QLatin1String("effectgroup")) {
-        QDomNodeList effects = base.elementsByTagName(QStringLiteral("effect"));
+    if (base.tagName() == QLatin1String("pendingeffects")) {
+        const QDomNodeList pendingEffects = base.elementsByTagName(QStringLiteral("pendingeffect"));
+        for (int i = 0; i < pendingEffects.count(); ++i) {
+            const QDomElement effect = pendingEffects.item(i).toElement();
+            Info result;
+            result.id = effect.attribute(QStringLiteral("id"));
+            result.name = Xml::getSubTagContent(effect, QStringLiteral("name"));
+            result.description = Xml::getSubTagContent(effect, QStringLiteral("description"));
+            result.xml = effect;
+            result.type = AssetListType::AssetType::Pending;
+            setDefaultFeatures(result);
+            if (!result.id.isEmpty() && !result.name.isEmpty()) {
+                customAssets[result.id] = result;
+            }
+        }
+        return;
+    }
+    auto addGroup = [&](const QDomElement &group) {
+        QDomNodeList effects = group.elementsByTagName(QStringLiteral("effect"));
         if (effects.count() > 1) {
             // Effect group
             Info result;
-            result.xml = base;
-            result.description = Xml::getSubTagContent(base, QStringLiteral("description"));
+            result.xml = group;
+            result.description = Xml::getSubTagContent(group, QStringLiteral("description"));
             // Get group type
-            QString type = base.attribute(QStringLiteral("type"), QString());
+            QString type = group.attribute(QStringLiteral("type"), QString());
             if (file_name.contains(QStringLiteral("effect-templates"))) {
                 const QString localFolder = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
                 bool isLocalFile = false;
@@ -112,19 +129,19 @@ void EffectsRepository::parseCustomAssetFile(const QString &file_name, std::unor
                     return;
                 }
             }
-            result.id = base.attribute(QStringLiteral("id"), QString());
+            result.id = group.attribute(QStringLiteral("id"), QString());
             if (result.id.isEmpty()) {
                 result.id = QFileInfo(file_name).baseName();
             }
             if (!result.id.isEmpty()) {
-                result.name = Xml::getSubTagContent(base, QStringLiteral("name"));
+                result.name = Xml::getSubTagContent(group, QStringLiteral("name"));
                 if (result.name.isEmpty()) {
                     result.name = result.id;
                 }
                 if (m_includedList.contains(result.mltId)) {
                     result.included = true;
                 }
-                QDomNode features = base.firstChildElement(QLatin1String("features"));
+                QDomNode features = group.firstChildElement(QLatin1String("features"));
                 if (!features.isNull()) {
                     QDomNodeList featuresList = features.childNodes();
                     for (int i = 0; i < featuresList.count(); i++) {
@@ -134,8 +151,18 @@ void EffectsRepository::parseCustomAssetFile(const QString &file_name, std::unor
                 }
                 customAssets[result.id] = result;
             }
-            return;
         }
+    };
+    if (base.tagName() == QLatin1String("effectgroup")) {
+        addGroup(base);
+        return;
+    }
+    if (base.tagName() == QLatin1String("effecttemplates")) {
+        QDomNodeList groups = base.elementsByTagName(QStringLiteral("effectgroup"));
+        for (int i = 0; i < groups.count(); ++i) {
+            addGroup(groups.item(i).toElement());
+        }
+        return;
     }
     QDomNodeList effects = doc.elementsByTagName(QStringLiteral("effect"));
     int nbr_effect = effects.count();

@@ -31,6 +31,7 @@ public:
 protected:
     bool filterType(const std::shared_ptr<TreeItem> &item) const;
     bool applyAll(std::shared_ptr<TreeItem> item) const override;
+    bool filterName(const std::shared_ptr<TreeItem> &item) const override;
     bool lessThan(const QModelIndex &left, const QModelIndex &right) const override;
     /** @brief Sets the deprecated category index (m_deprecatedCategory) if found. */
     void getDeprecatedCategory();

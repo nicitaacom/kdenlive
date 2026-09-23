@@ -2,6 +2,7 @@
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" tag="avfilter.dblur" id="avfilter.dblur">
     <name>Directional Blur</name>
+    <aliases>linear blur; Vegas linear blur</aliases>
     <description>Apply directional blur filter</description>
     <author>libavfilter</author>
     <parameter type="animated" name="av.angle" max="360" min="0" decimals="1" default="45" suffix="°">

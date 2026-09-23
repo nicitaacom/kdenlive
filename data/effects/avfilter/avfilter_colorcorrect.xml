@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui>
 <effect xmlns="https://www.kdenlive.org" tag="avfilter.colorcorrect" id="avfilter.colorcorrect">
+    <aliases>Vegas color corrector; color correction</aliases>
     <name>Color Correct</name>
     <description>Adjust color white balance selectively for blacks and whites.This filter operates in YUV colorspace.</description>
     <author>libavfilter</author>

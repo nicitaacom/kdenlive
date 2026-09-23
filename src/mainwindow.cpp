@@ -676,7 +676,25 @@ void MainWindow::init()
             QMenu *settingsMenu = menuAction->menu();
             QAction *densityAction = densityMenu->menu()->menuAction();
             if (!settingsMenu->actions().contains(densityAction)) {
-                settingsMenu->addAction(densityAction);
+                QAction *colorSchemeAction = nullptr;
+                const auto settingsActions = settingsMenu->actions();
+                for (QAction *settingsAction : settingsActions) {
+                    if (settingsAction->text().remove(QLatin1Char('&')) == i18n("Color Scheme")) {
+                        colorSchemeAction = settingsAction;
+                        break;
+                    }
+                }
+                if (colorSchemeAction) {
+                    const int colorSchemeIndex = settingsActions.indexOf(colorSchemeAction);
+                    QAction *nextAction = colorSchemeIndex + 1 < settingsActions.size() ? settingsActions.at(colorSchemeIndex + 1) : nullptr;
+                    if (nextAction) {
+                        settingsMenu->insertAction(nextAction, densityAction);
+                    } else {
+                        settingsMenu->addAction(densityAction);
+                    }
+                } else {
+                    settingsMenu->addAction(densityAction);
+                }
             }
             break;
         }

@@ -413,6 +413,20 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
     QDomNodeList nodeList = effectsXml.elementsByTagName(QStringLiteral("effect"));
     int parentIn = effectsXml.attribute(QStringLiteral("parentIn")).toInt();
     int currentIn = pCore->getItemIn(m_ownerId);
+    const int transitionFrames = effectsXml.attribute(QStringLiteral("transitionFrames")).toInt();
+    const QString transitionRole = effectsXml.attribute(QStringLiteral("transitionRole"));
+    const bool isTransitionPreset = transitionFrames > 0 && (transitionRole == QLatin1String("out") || transitionRole == QLatin1String("in")) &&
+                                   m_ownerId.type == KdenliveObjectType::TimelineClip;
+    int transitionIn = currentIn;
+    int transitionOut = currentIn;
+    int transitionKeyframeOffset = currentIn - parentIn;
+    int clipOut = currentIn + pCore->getItemDuration(m_ownerId) - 1;
+    if (isTransitionPreset) {
+        const int clipDuration = qMax(1, pCore->getItemDuration(m_ownerId));
+        transitionIn = transitionRole == QLatin1String("out") ? currentIn + qMax(0, clipDuration - transitionFrames) : currentIn;
+        transitionOut = qMin(clipOut, transitionIn + transitionFrames - 1);
+        transitionKeyframeOffset = transitionIn - parentIn;
+    }
     PlaylistState::ClipState state = pCore->getItemState(m_ownerId).first;
     bool effectAdded = false;
     for (int i = 0; i < nodeList.count(); ++i) {
@@ -486,6 +500,11 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
         if (!out.isEmpty()) {
             effect->filter().set("in", in.toUtf8().constData());
             effect->filter().set("out", out.toUtf8().constData());
+        } else if (isTransitionPreset) {
+            // Transition-template keyframes are local to the motion duration.
+            // Restrict every component to that clip-edge interval so the
+            // outgoing transform cannot remain off-screen after the clip ends.
+            effect->filter().set_in_and_out(transitionIn, transitionOut);
         }
         QMap<QString, std::pair<ParamType, bool>> keyframeParams = effect->getKeyframableParameters();
         QVector<QPair<QString, QVariant>> parameters;
@@ -503,7 +522,9 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
                     currentDuration--;
                     currentDuration += currentIn;
                 }
-                QString pValue = KeyframeModel::getAnimationStringWithOffset(effect, pnode.text(), currentIn - parentIn, currentDuration,
+                const int offset = isTransitionPreset ? transitionKeyframeOffset : currentIn - parentIn;
+                const int keyframeDuration = isTransitionPreset ? transitionOut : currentDuration;
+                QString pValue = KeyframeModel::getAnimationStringWithOffset(effect, pnode.text(), offset, keyframeDuration,
                                                                              keyframeParams.value(pName).first, keyframeParams.value(pName).second);
                 parameters.append(QPair<QString, QVariant>(pName, QVariant(pValue)));
             } else {

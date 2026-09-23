@@ -48,6 +48,9 @@ const QPixmap AssetIconProvider::makePixmap(const QString &effectName, const QSt
         } else {
             direction = QPointF(0, 0);
         }
+        if (name.contains(QLatin1String("second clip"))) {
+            direction = -direction;
+        }
         if (name.contains(QLatin1String("zoom")) || name.contains(QLatin1String("pinch"))) {
             QRectF ghost = frame.adjusted(-8, -5, 8, 5);
             painter.setPen(QPen(QColor(QStringLiteral("#32b8cc")), 1, Qt::DashLine));

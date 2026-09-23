@@ -74,10 +74,12 @@ editable effect-stack templates in searchable Movement, Zoom, Spin, Blur, and
 Distortion categories. The first and second clip variants stay separate and
 retain the vendor package entry as a searchable alias. The existing Effects
 library shows a directional preview thumbnail in icon view; each preset drags
-onto a clip as its editable native stack. These are native interpretations of
-the source names and durations, not converted vendor plugin records or exact
-copies of their rendering. Warp/WarpPin titles use the available transform
-stack rather than pretending that Wave is a pin warp.
+onto a clip as its editable native stack. These are clip effects: they animate
+within the named frame duration, keep the transformed image covering the frame,
+and return to normal framing. They are native interpretations of the source
+names and durations, not converted vendor plugin records or exact copies of
+their rendering. Warp/WarpPin titles use the available transform stack rather
+than pretending that Wave is a pin warp.
 
 ## First-pass search names
 

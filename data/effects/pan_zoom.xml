@@ -11,6 +11,9 @@
     <parameter type="bool" name="transition.distort" default="0">
         <name>Distort</name>
     </parameter>
+    <parameter type="simplekeyframe" name="transition.rotate_z" default="0" min="-180" max="180" factor="1">
+        <name>Rotation</name>
+    </parameter>
     <parameter type="bool" name="use_normalised" default="0">
         <name>Normalise</name>
     </parameter>

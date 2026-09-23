@@ -15,6 +15,7 @@
 - Gaussian Blur exposes horizontal and vertical sigma. Proportional lock and Apply Linear controls remain pending.
 - Matching effects and the 194-entry native transition-template catalog are documented in `PRESET_EFFECT_INVENTORY.md`. Preset thumbnails currently depict motion direction; they are not rendered video previews.
 - `S_BlurMoCurves`, `S_BlurMotion`, and RE:Vision `RSMB` now appear as non-applicable Pending entries for their vendor IDs and common search terms.
+- The 194 native transition stacks are clip effects: their transforms stay within a covering frame and return to normal framing at the selected duration. They are not multi-track compositing transitions.
 
 ## Prioritized backlog
 

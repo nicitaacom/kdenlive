@@ -97,6 +97,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 
 static QImage m_videoIcon;
 static QImage m_audioIcon;
+static QImage m_audioSelectedIcon;
+static QImage m_videoSelectedIcon;
 static QImage m_audioUsedIcon;
 static QImage m_videoUsedIcon;
 static QImage m_effectIcon;
@@ -516,8 +518,8 @@ public:
                         if (opt.state & QStyle::State_MouseOver) {
                             m_audioDragRect = audioRect.adjusted(-1, -1, 1, 1);
                             m_videoDragRect = videoIconRect.adjusted(-1, -1, 1, 1);
-                            painter->drawImage(audioRect.topLeft(), m_audioIcon);
-                            painter->drawImage(videoIconRect.topLeft(), m_videoIcon);
+                            painter->drawImage(audioRect.topLeft(), selected ? m_audioSelectedIcon : m_audioIcon);
+                            painter->drawImage(videoIconRect.topLeft(), selected ? m_videoSelectedIcon : m_videoIcon);
                             // Use text color when selected (for better contrast) as selected background color is pretty close to highlight color
                             // Use main window palette as highlight color of "option" was too dark
                             QColor rectColor = selected ? qApp->palette().text().color() : qApp->palette().highlight().color();
@@ -526,10 +528,10 @@ public:
                             painter->drawRect(m_videoDragRect);
                         } else if (!usage.isEmpty()) {
                             if (index.data(AbstractProjectItem::AudioUsed).toBool()) {
-                                painter->drawImage(audioRect.topLeft(), selected ? m_audioIcon : m_audioUsedIcon);
+                                painter->drawImage(audioRect.topLeft(), selected ? m_audioSelectedIcon : m_audioUsedIcon);
                             }
                             if (index.data(AbstractProjectItem::VideoUsed).toBool()) {
-                                painter->drawImage(videoIconRect.topLeft(), selected ? m_videoIcon : m_videoUsedIcon);
+                                painter->drawImage(videoIconRect.topLeft(), selected ? m_videoSelectedIcon : m_videoUsedIcon);
                             }
                         }
                     } else if (!usage.isEmpty()) {
@@ -538,9 +540,9 @@ public:
                         int minPos = bounding.right() + (2 * textMargin) + logicalIconSize;
                         iconRect.moveRight(qMax(minPos, option.rect.right() - (2 * textMargin)));
                         if (index.data(AbstractProjectItem::AudioUsed).toBool()) {
-                            painter->drawImage(iconRect.topLeft(), selected ? m_audioIcon : m_audioUsedIcon);
+                            painter->drawImage(iconRect.topLeft(), selected ? m_audioSelectedIcon : m_audioUsedIcon);
                         } else {
-                            painter->drawImage(iconRect.topLeft(), selected ? m_videoIcon : m_videoUsedIcon);
+                            painter->drawImage(iconRect.topLeft(), selected ? m_videoSelectedIcon : m_videoUsedIcon);
                         }
                     }
                 }
@@ -1847,6 +1849,11 @@ void Bin::slotUpdatePalette()
         effectIcon.paint(&p, 0, 0, iconSize, iconSize);
         p.end();
         m_audioUsedIcon = m_audioIcon;
+        m_audioSelectedIcon = m_audioIcon;
+        m_videoSelectedIcon = m_videoIcon;
+        const QColor selectionTextColor = qApp->palette().highlightedText().color();
+        KIconEffect::toMonochrome(m_audioSelectedIcon, selectionTextColor, selectionTextColor, 1);
+        KIconEffect::toMonochrome(m_videoSelectedIcon, selectionTextColor, selectionTextColor, 1);
         QColor highlightColor = qApp->palette().highlight().color();
         KIconEffect::toMonochrome(m_audioUsedIcon, highlightColor, highlightColor, 1);
         m_videoUsedIcon = m_videoIcon;

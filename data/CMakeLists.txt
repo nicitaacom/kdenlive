@@ -4,6 +4,7 @@
 add_subdirectory(effects)
 add_subdirectory(generators)
 add_subdirectory(layouts)
+add_subdirectory(color-schemes)
 add_subdirectory(transitions)
 add_subdirectory(icons)
 add_subdirectory(knewstuff)
@@ -36,4 +37,3 @@ install(FILES org.kde.kdenlive.desktop DESTINATION ${KDE_INSTALL_APPDIR})
 find_package(SharedMimeInfo REQUIRED)
 install(FILES org.kde.kdenlive.xml westley.xml DESTINATION ${KDE_INSTALL_MIMEDIR})
 update_xdg_mimetypes(${KDE_INSTALL_MIMEDIR})
-

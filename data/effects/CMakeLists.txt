@@ -54,6 +54,12 @@ mask_start_rotoscoping.xml
 mask_start_shape.xml
 mask_apply.xml
 mirror.xml
+motion_transform_blur.xml
+native_fisheye_warp.xml
+native_axis_stretch.xml
+native_corner_pin.xml
+native_warp_chroma.xml
+native_shake.xml
 mono.xml
 mute.xml
 normalise.xml

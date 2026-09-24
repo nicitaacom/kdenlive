@@ -52,6 +52,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QFileInfo>
 #include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -249,6 +250,18 @@ int main(int argc, char *argv[])
     KIconTheme::initTheme();
 
     Application app(argc, argv);
+
+#if defined(Q_OS_LINUX)
+    // An installed native MLT module lives beside Kdenlive in the local
+    // prefix. Its repository also links to the system MLT modules so monitor,
+    // preview, and spawned render processes resolve the same filter services.
+    if (qEnvironmentVariableIsEmpty("MLT_REPOSITORY")) {
+        const QString repository = QDir(app.applicationDirPath()).absoluteFilePath(QStringLiteral("../lib/mlt-7"));
+        if (QFileInfo::exists(repository + QStringLiteral("/libmltkdenlivenative.so"))) {
+            qputenv("MLT_REPOSITORY", QFileInfo(repository).canonicalFilePath().toUtf8());
+        }
+    }
+#endif
 
     // Default to org.kde.desktop style unless the user forces another style
     if (qEnvironmentVariableIsEmpty("QT_QUICK_CONTROLS_STYLE")) {

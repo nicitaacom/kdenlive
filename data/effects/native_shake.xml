@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_shake" id="kdenlive_shake" type="video">
+    <name>Deterministic Shake</name>
+    <description>Seeded smooth-noise translation, zoom, and rotation with independent X, Y, Z, and tilt oscillation and optional trajectory blur. This is a native component with its own noise function, not a completed Sapphire preset.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="amplitude_adjust" default="0" min="-20" max="20" decimals="3"><name>Amplitude adjustment</name></parameter>
+    <parameter type="animated" name="frequency_adjust" default="0" min="-100" max="100" decimals="3"><name>Frequency adjustment</name></parameter>
+    <parameter type="animated" name="phase" default="0" min="-100" max="100" decimals="3"><name>Phase</name></parameter>
+    <parameter type="animated" name="seed" default="0" min="0" max="100000" decimals="0"><name>Seed</name></parameter>
+    <parameter type="animated" name="z_distance" default="1" min="0.001" max="8" decimals="3"><name>Z distance</name></parameter>
+    <parameter type="animated" name="x_rand_amp" default="0" min="-4" max="4" decimals="3"><name>X random amplitude</name></parameter>
+    <parameter type="animated" name="x_rand_freq" default="1" min="0" max="100" decimals="3"><name>X random frequency</name></parameter>
+    <parameter type="animated" name="x_wave_amp" default="0" min="-4" max="4" decimals="3"><name>X wave amplitude</name></parameter>
+    <parameter type="animated" name="x_wave_freq" default="1" min="0" max="100" decimals="3"><name>X wave frequency</name></parameter>
+    <parameter type="animated" name="x_phase" default="0" min="-100" max="100" decimals="3"><name>X phase</name></parameter>
+    <parameter type="animated" name="y_rand_amp" default="0" min="-4" max="4" decimals="3"><name>Y random amplitude</name></parameter>
+    <parameter type="animated" name="y_rand_freq" default="1" min="0" max="100" decimals="3"><name>Y random frequency</name></parameter>
+    <parameter type="animated" name="y_wave_amp" default="0" min="-4" max="4" decimals="3"><name>Y wave amplitude</name></parameter>
+    <parameter type="animated" name="y_wave_freq" default="1" min="0" max="100" decimals="3"><name>Y wave frequency</name></parameter>
+    <parameter type="animated" name="y_phase" default="0" min="-100" max="100" decimals="3"><name>Y phase</name></parameter>
+    <parameter type="animated" name="z_rand_amp" default="0" min="-4" max="4" decimals="3"><name>Z random amplitude</name></parameter>
+    <parameter type="animated" name="z_rand_freq" default="1" min="0" max="100" decimals="3"><name>Z random frequency</name></parameter>
+    <parameter type="animated" name="z_wave_amp" default="0" min="-4" max="4" decimals="3"><name>Z wave amplitude</name></parameter>
+    <parameter type="animated" name="z_wave_freq" default="1" min="0" max="100" decimals="3"><name>Z wave frequency</name></parameter>
+    <parameter type="animated" name="z_phase" default="0" min="-100" max="100" decimals="3"><name>Z phase</name></parameter>
+    <parameter type="animated" name="tilt_rand_amp" default="0" min="-90" max="90" decimals="2"><name>Tilt random amplitude (degrees)</name></parameter>
+    <parameter type="animated" name="tilt_rand_freq" default="1" min="0" max="100" decimals="3"><name>Tilt random frequency</name></parameter>
+    <parameter type="animated" name="tilt_wave_amp" default="0" min="-90" max="90" decimals="2"><name>Tilt wave amplitude (degrees)</name></parameter>
+    <parameter type="animated" name="tilt_wave_freq" default="1" min="0" max="100" decimals="3"><name>Tilt wave frequency</name></parameter>
+    <parameter type="animated" name="tilt_phase" default="0" min="-100" max="100" decimals="3"><name>Tilt phase</name></parameter>
+    <parameter type="animated" name="motion_blur" default="0" min="0" max="1" decimals="0"><name>Motion blur enabled</name></parameter>
+    <parameter type="animated" name="mo_blur_length" default="1" min="0" max="16" decimals="3"><name>Motion blur length (nominal frames)</name></parameter>
+    <parameter type="animated" name="quality_samples" default="8" min="1" max="64" decimals="0"><name>Shutter samples</name></parameter>
+    <parameter type="animated" name="wrap_x" default="2" min="0" max="2" decimals="0"><name>Horizontal edge mode</name></parameter>
+    <parameter type="animated" name="wrap_y" default="2" min="0" max="2" decimals="0"><name>Vertical edge mode</name></parameter>
+    <parameter type="animated" name="subpixel" default="1" min="0" max="1" decimals="0"><name>Subpixel sampling</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="amplitude" default="0" />
+    <parameter type="fixed" name="frequency" default="1" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_nominal_frames" default="0" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

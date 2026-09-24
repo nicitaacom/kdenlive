@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_corner_pin" id="kdenlive_corner_pin" type="video">
+    <name>Perspective and Bulge Warp</name>
+    <description>Four-corner perspective mapping with nonlinear horizontal and vertical bulge. Corner coordinates use normalized source-up Y. This native bulge kernel differs from Sapphire's unpublished kernel; source presets remain pending.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="tl_x_adjust" default="0" min="-2" max="2" decimals="3"><name>Top left X adjustment</name></parameter>
+    <parameter type="animated" name="tl_y_adjust" default="0" min="-2" max="2" decimals="3"><name>Top left Y adjustment</name></parameter>
+    <parameter type="animated" name="tr_x_adjust" default="0" min="-2" max="2" decimals="3"><name>Top right X adjustment</name></parameter>
+    <parameter type="animated" name="tr_y_adjust" default="0" min="-2" max="2" decimals="3"><name>Top right Y adjustment</name></parameter>
+    <parameter type="animated" name="bl_x_adjust" default="0" min="-2" max="2" decimals="3"><name>Bottom left X adjustment</name></parameter>
+    <parameter type="animated" name="bl_y_adjust" default="0" min="-2" max="2" decimals="3"><name>Bottom left Y adjustment</name></parameter>
+    <parameter type="animated" name="br_x_adjust" default="0" min="-2" max="2" decimals="3"><name>Bottom right X adjustment</name></parameter>
+    <parameter type="animated" name="br_y_adjust" default="0" min="-2" max="2" decimals="3"><name>Bottom right Y adjustment</name></parameter>
+    <parameter type="animated" name="bulge_x_adjust" default="0" min="-2" max="2" decimals="3"><name>Horizontal bulge adjustment</name></parameter>
+    <parameter type="animated" name="bulge_y_adjust" default="0" min="-2" max="2" decimals="3"><name>Vertical bulge adjustment</name></parameter>
+    <parameter type="animated" name="shutter_angle_adjust" default="0" min="-360" max="360" decimals="1"><name>Shutter angle adjustment (degrees)</name></parameter>
+    <parameter type="animated" name="motion_blur_enable" default="1" min="0" max="1" decimals="0"><name>Motion blur enabled</name></parameter>
+    <parameter type="animated" name="quality_samples" default="16" min="1" max="64" decimals="0"><name>Shutter samples</name></parameter>
+    <parameter type="animated" name="wrap_x" default="0" min="0" max="2" decimals="0"><name>Horizontal edge mode</name></parameter>
+    <parameter type="animated" name="wrap_y" default="0" min="0" max="2" decimals="0"><name>Vertical edge mode</name></parameter>
+    <parameter type="animated" name="subpixel" default="1" min="0" max="1" decimals="0"><name>Subpixel sampling</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="tl_x" default="0" />
+    <parameter type="fixed" name="tl_y" default="1" />
+    <parameter type="fixed" name="tr_x" default="1" />
+    <parameter type="fixed" name="tr_y" default="1" />
+    <parameter type="fixed" name="bl_x" default="0" />
+    <parameter type="fixed" name="bl_y" default="0" />
+    <parameter type="fixed" name="br_x" default="1" />
+    <parameter type="fixed" name="br_y" default="0" />
+    <parameter type="fixed" name="bulge_x" default="1" />
+    <parameter type="fixed" name="bulge_y" default="1" />
+    <parameter type="fixed" name="shutter_angle" default="180" />
+    <parameter type="fixed" name="native_nominal_frames" default="0" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

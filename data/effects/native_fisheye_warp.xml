@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_fisheye_warp" id="kdenlive_fisheye_warp" type="video">
+    <name>Radial Fisheye Warp</name>
+    <description>Nonlinear radial source-image warp with reflected or tiled borders. Positive amount expands the center. This native reconstruction uses its own radial kernel; it is a selectable component, not a completed Sapphire preset.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="amount_adjust" default="0" min="-4" max="4" decimals="3"><name>Amount adjustment</name></parameter>
+    <parameter type="animated" name="center_x_adjust" default="0" min="-2" max="2" decimals="3"><name>Center X adjustment</name></parameter>
+    <parameter type="animated" name="center_y_adjust" default="0" min="-2" max="2" decimals="3"><name>Center Y adjustment</name></parameter>
+    <parameter type="animated" name="z_distance_adjust" default="1" min="0.001" max="8" decimals="3"><name>Z distance multiplier</name></parameter>
+    <parameter type="animated" name="rotation_adjust" default="0" min="-180" max="180" decimals="2"><name>Rotation adjustment</name></parameter>
+    <parameter type="animated" name="shift_orig_x_adjust" default="0" min="-4" max="4" decimals="3"><name>Source shift X adjustment</name></parameter>
+    <parameter type="animated" name="shift_orig_y_adjust" default="0" min="-4" max="4" decimals="3"><name>Source shift Y adjustment</name></parameter>
+    <parameter type="animated" name="wrap_x" default="2" min="0" max="2" decimals="0"><name>Horizontal edge mode</name></parameter>
+    <parameter type="animated" name="wrap_y" default="2" min="0" max="2" decimals="0"><name>Vertical edge mode</name></parameter>
+    <parameter type="animated" name="subpixel" default="1" min="0" max="1" decimals="0"><name>Subpixel sampling</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="amount" default="0" />
+    <parameter type="fixed" name="center_x" default="0.5" />
+    <parameter type="fixed" name="center_y" default="0.5" />
+    <parameter type="fixed" name="z_distance" default="1" />
+    <parameter type="fixed" name="rotation" default="0" />
+    <parameter type="fixed" name="shift_orig_x" default="0" />
+    <parameter type="fixed" name="shift_orig_y" default="0" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

@@ -14,6 +14,7 @@
 #include <QCommandLineParser>
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
 #include <QDomDocument>
 #include <QImageReader>
 #include <QTemporaryFile>
@@ -54,6 +55,15 @@ int main(int argc, char **argv)
     QCoreApplication::setApplicationName("kdenlive_render");
     QCoreApplication::setApplicationVersion(KDENLIVE_VERSION);
     QImageReader::setAllocationLimit(1024);
+
+#if defined(Q_OS_LINUX)
+    if (qEnvironmentVariableIsEmpty("MLT_REPOSITORY")) {
+        const QString repository = QDir(app.applicationDirPath()).absoluteFilePath(QStringLiteral("../lib/mlt-7"));
+        if (QFileInfo::exists(repository + QStringLiteral("/libmltkdenlivenative.so"))) {
+            qputenv("MLT_REPOSITORY", QFileInfo(repository).canonicalFilePath().toUtf8());
+        }
+    }
+#endif
 
     QCommandLineParser parser;
     parser.setApplicationDescription("Kdenlive video renderer for MLT");

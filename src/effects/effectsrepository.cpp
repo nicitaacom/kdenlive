@@ -82,7 +82,7 @@ void EffectsRepository::parseCustomAssetFile(const QString &file_name, std::unor
     }
     auto addGroup = [&](const QDomElement &group) {
         QDomNodeList effects = group.elementsByTagName(QStringLiteral("effect"));
-        if (effects.count() > 1) {
+        if (effects.count() > 1 || (effects.count() == 1 && group.attribute(QStringLiteral("nativePresetVersion")) == QLatin1String("1"))) {
             // Effect group
             Info result;
             result.xml = group;

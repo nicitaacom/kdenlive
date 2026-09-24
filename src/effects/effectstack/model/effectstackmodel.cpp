@@ -14,6 +14,11 @@
 #include "mainwindow.h"
 #include "timeline2/model/timelinemodel.hpp"
 #include <profiles/profilemodel.hpp>
+#include <QJsonDocument>
+#include <QJsonParseError>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <cmath>
 #include <stack>
 #include <utility>
 #include <vector>
@@ -415,8 +420,73 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
     int currentIn = pCore->getItemIn(m_ownerId);
     const int transitionFrames = effectsXml.attribute(QStringLiteral("transitionFrames")).toInt();
     const QString transitionRole = effectsXml.attribute(QStringLiteral("transitionRole"));
+    const bool isNativeFittedPreset = effectsXml.attribute(QStringLiteral("nativePresetVersion")) == QLatin1String("1") &&
+                                      effectsXml.attribute(QStringLiteral("fitToEvent")) == QLatin1String("1") &&
+                                      m_ownerId.type == KdenliveObjectType::TimelineClip;
     const bool isTransitionPreset = transitionFrames > 0 && (transitionRole == QLatin1String("out") || transitionRole == QLatin1String("in")) &&
-                                   m_ownerId.type == KdenliveObjectType::TimelineClip;
+                                   m_ownerId.type == KdenliveObjectType::TimelineClip && !isNativeFittedPreset;
+    if (isNativeFittedPreset) {
+        // A new native preset is a single operation. Check every service and
+        // curve payload before constructing or attaching its first filter.
+        if (transitionFrames < 1 || (transitionRole != QLatin1String("out") && transitionRole != QLatin1String("in")) ||
+            nodeList.isEmpty() || effectsXml.attribute(QStringLiteral("sourceId")).isEmpty()) {
+            return false;
+        }
+        const PlaylistState::ClipState targetState = pCore->getItemState(m_ownerId).first;
+        QStringList uniqueEffects;
+        for (int i = 0; i < nodeList.count(); ++i) {
+            const QDomElement node = nodeList.item(i).toElement();
+            const QString effectId = node.attribute(QStringLiteral("id"));
+            if (!EffectsRepository::get()->exists(effectId) ||
+                (targetState == PlaylistState::VideoOnly && EffectsRepository::get()->isAudioEffect(effectId)) ||
+                (targetState == PlaylistState::AudioOnly && !EffectsRepository::get()->isAudioEffect(effectId)) ||
+                (EffectsRepository::get()->isUnique(effectId) && (hasFilter(effectId) || uniqueEffects.contains(effectId)))) {
+                return false;
+            }
+            uniqueEffects.append(effectId);
+            std::unique_ptr<Mlt::Filter> candidate = EffectsRepository::get()->getEffect(effectId);
+            if (!candidate || !candidate->is_valid()) {
+                pCore->displayMessage(i18n("Native transition component %1 is unavailable.", effectId), ErrorMessage);
+                return false;
+            }
+            const QString curves = Xml::getXmlProperty(node, QStringLiteral("native_curves"));
+            if (!curves.isEmpty()) {
+                QJsonParseError parseError;
+                const QJsonDocument document = QJsonDocument::fromJson(curves.toUtf8(), &parseError);
+                if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+                    return false;
+                }
+                const QJsonObject curveObject = document.object();
+                for (auto curve = curveObject.constBegin(); curve != curveObject.constEnd(); ++curve) {
+                    if (!curve.value().isArray()) {
+                        return false;
+                    }
+                    double previousTime = -1.0;
+                    for (const QJsonValue &keyValue : curve.value().toArray()) {
+                        if (!keyValue.isArray()) {
+                            return false;
+                        }
+                        const QJsonArray key = keyValue.toArray();
+                        if (key.size() != 7) {
+                            return false;
+                        }
+                        for (const QJsonValue &field : key) {
+                            if (!field.isDouble() || !std::isfinite(field.toDouble())) {
+                                return false;
+                            }
+                        }
+                        const double time = key.at(0).toDouble();
+                        const double interpolation = key.at(6).toDouble();
+                        if (time <= previousTime || time < 0.0 || time > 1.0 ||
+                            interpolation != std::floor(interpolation) || interpolation < 0.0 || interpolation > 2.0) {
+                            return false;
+                        }
+                        previousTime = time;
+                    }
+                }
+            }
+        }
+    }
     int transitionIn = currentIn;
     int transitionOut = currentIn;
     int transitionKeyframeOffset = currentIn - parentIn;
@@ -500,6 +570,8 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
         if (!out.isEmpty()) {
             effect->filter().set("in", in.toUtf8().constData());
             effect->filter().set("out", out.toUtf8().constData());
+        } else if (isNativeFittedPreset) {
+            effect->filter().set_in_and_out(currentIn, clipOut);
         } else if (isTransitionPreset) {
             // Transition-template keyframes are local to the motion duration.
             // Restrict every component to that clip-edge interval so the
@@ -538,6 +610,14 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
             }
         }
         effect->setParameters(parameters);
+        if (isNativeFittedPreset) {
+            effect->filter().set("native_fit_version", 1);
+            effect->filter().set("native_preset_schema_version", 1);
+            effect->filter().set("native_preset_id", effectsXml.attribute(QStringLiteral("sourceId")).toUtf8().constData());
+            effect->filter().set("native_nominal_frames", transitionFrames);
+            effect->filter().set("native_event_frames", pCore->getItemDuration(m_ownerId));
+            effect->filter().set("native_event_role", transitionRole == QLatin1String("in") ? "incoming" : "outgoing");
+        }
         Fun local_undo = removeItem_lambda(effect->getId());
         // TODO the parent should probably not always be the root
         Fun local_redo = addItem_lambda(effect, rootItem->getId());
@@ -597,7 +677,11 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
                 }
             }
         }
-        local_redo();
+        const bool inserted = local_redo();
+        if (isNativeFittedPreset && !inserted) {
+            undo();
+            return false;
+        }
         Fun reorder = checkLambdaOrder(effect);
         reorder();
         PUSH_LAMBDA(reorder, local_redo);
@@ -886,6 +970,26 @@ bool EffectStackModel::adjustStackLength(bool adjustFromEnd, int oldIn, int oldD
             continue;
         }
         std::shared_ptr<EffectItemModel> effect = std::static_pointer_cast<EffectItemModel>(leaf);
+        if (m_ownerId.type == KdenliveObjectType::TimelineClip && effect->filter().get_int("native_fit_version") == 1) {
+            const int oldFilterIn = effect->filter().get_in();
+            const int oldFilterOut = effect->filter().get_out();
+            const int oldFrames = effect->filter().get_int("native_event_frames");
+            const int newOut = newIn + duration - 1;
+            Fun operation = [effect, newIn, newOut, duration]() {
+                effect->filter().set_in_and_out(newIn, newOut);
+                effect->filter().set("native_event_frames", duration);
+                return true;
+            };
+            Fun reverse = [effect, oldFilterIn, oldFilterOut, oldFrames]() {
+                effect->filter().set_in_and_out(oldFilterIn, oldFilterOut);
+                effect->filter().set("native_event_frames", oldFrames);
+                return true;
+            };
+            operation();
+            PUSH_LAMBDA(operation, redo);
+            PUSH_LAMBDA(reverse, undo);
+            continue;
+        }
         if (fadeInDuration > 0 && m_fadeIns.count(leaf->getId()) > 0) {
             // Adjust fade in
             int oldEffectIn = qMax(0, effect->filter().get_in());

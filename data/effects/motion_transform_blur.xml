@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_motion_curve" id="kdenlive_motion_curve" type="video">
+    <name>Motion Transform and Blur</name>
+    <description>Move, zoom, and rotate the whole source image while sampling its transform path across an editable shutter interval. Horizontal and vertical edge modes: 0 = transparent, 1 = tile, 2 = reflect. This is a native component, not a completed source transition preset.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="center_x_adjust" default="0" min="-2" max="2" decimals="3"><name>Center X adjustment (frame fraction)</name></parameter>
+    <parameter type="animated" name="center_y_adjust" default="0" min="-2" max="2" decimals="3"><name>Center Y adjustment (frame fraction)</name></parameter>
+    <parameter type="animated" name="shift_x_adjust" default="0" min="-8" max="8" decimals="3"><name>Shift X adjustment (frame fraction)</name></parameter>
+    <parameter type="animated" name="shift_y_adjust" default="0" min="-8" max="8" decimals="3"><name>Shift Y adjustment (frame fraction)</name></parameter>
+    <parameter type="animated" name="z_distance_adjust" default="1" min="0.001" max="8" decimals="3"><name>Z distance multiplier</name></parameter>
+    <parameter type="animated" name="rotation_adjust" default="0" min="-180" max="180" decimals="2"><name>Rotation adjustment (degrees)</name></parameter>
+    <parameter type="animated" name="shutter_duration_adjust" default="0" min="-16" max="16" decimals="3"><name>Shutter duration adjustment (frames)</name></parameter>
+    <parameter type="animated" name="shutter_shift_adjust" default="0" min="-8" max="8" decimals="3"><name>Shutter shift adjustment (frames)</name></parameter>
+    <parameter type="animated" name="exposure_bias_adjust" default="0" min="-1" max="1" decimals="3"><name>Exposure bias adjustment</name></parameter>
+    <parameter type="animated" name="brightness_adjust" default="1" min="0" max="8" decimals="3"><name>Brightness multiplier</name></parameter>
+    <parameter type="animated" name="wrap_x" default="2" min="0" max="2" decimals="0"><name>Horizontal edge mode</name></parameter>
+    <parameter type="animated" name="wrap_y" default="2" min="0" max="2" decimals="0"><name>Vertical edge mode</name></parameter>
+    <parameter type="animated" name="quality_samples" default="8" min="1" max="64" decimals="0"><name>Shutter samples</name></parameter>
+    <parameter type="animated" name="subpixel" default="1" min="0" max="1" decimals="0"><name>Subpixel sampling</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="center_x" default="0.5" />
+    <parameter type="fixed" name="center_y" default="0.5" />
+    <parameter type="fixed" name="shift_x" default="0" />
+    <parameter type="fixed" name="shift_y" default="0" />
+    <parameter type="fixed" name="z_distance" default="1" />
+    <parameter type="fixed" name="rotation" default="0" />
+    <parameter type="fixed" name="shutter_duration" default="1" />
+    <parameter type="fixed" name="shutter_shift" default="0" />
+    <parameter type="fixed" name="exposure_bias" default="0.5" />
+    <parameter type="fixed" name="brightness" default="1" />
+    <parameter type="fixed" name="native_nominal_frames" default="0" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

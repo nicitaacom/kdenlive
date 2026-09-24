@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_axis_stretch" id="kdenlive_axis_stretch" type="video">
+    <name>Axis Stretch Warp</name>
+    <description>Independently scales the source image horizontally and vertically. Source transition candidates use this component for animated Scale X or Scale Y. A complete preset remains pending until its other components and interpolation are validated.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="scale_x_adjust" default="1" min="0.01" max="8" decimals="3"><name>Horizontal scale multiplier</name></parameter>
+    <parameter type="animated" name="scale_y_adjust" default="1" min="0.01" max="8" decimals="3"><name>Vertical scale multiplier</name></parameter>
+    <parameter type="animated" name="shift_x_adjust" default="0" min="-4" max="4" decimals="3"><name>Horizontal shift adjustment</name></parameter>
+    <parameter type="animated" name="shift_y_adjust" default="0" min="-4" max="4" decimals="3"><name>Vertical shift adjustment</name></parameter>
+    <parameter type="animated" name="z_distance_adjust" default="1" min="0.01" max="8" decimals="3"><name>Z distance multiplier</name></parameter>
+    <parameter type="animated" name="wrap_x" default="0" min="0" max="2" decimals="0"><name>Horizontal edge mode</name></parameter>
+    <parameter type="animated" name="wrap_y" default="0" min="0" max="2" decimals="0"><name>Vertical edge mode</name></parameter>
+    <parameter type="animated" name="subpixel" default="1" min="0" max="1" decimals="0"><name>Subpixel sampling</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="scale_x" default="1" />
+    <parameter type="fixed" name="scale_y" default="1" />
+    <parameter type="fixed" name="shift_x" default="0" />
+    <parameter type="fixed" name="shift_y" default="0" />
+    <parameter type="fixed" name="z_distance" default="1" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

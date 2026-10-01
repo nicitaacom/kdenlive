@@ -120,6 +120,8 @@ public Q_SLOTS:
     void markMonitorDirty(Kdenlive::MonitorId name, const QUuid uuid);
 
 private Q_SLOTS:
+    /** @brief Refresh the visible monitor after a timeline effect changes its producer. */
+    void refreshTimelineAfterEffect(int timelinePosition);
     /** @brief Set MLT's consumer deinterlace method */
     void slotSetDeinterlacer(int ix);
     /** @brief Set MLT's consumer interpolation method */

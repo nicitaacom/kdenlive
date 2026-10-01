@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_blur_motion" id="kdenlive_blur_motion" type="video">
+    <name>Transform Path Blur</name>
+    <description>Native source-pixel blur accumulated between editable spatial From and To transforms. This reconstructs Sapphire BlurMotion's transform-space sampling; it does not use optical flow or neighboring source frames.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="from_z_dist_adjust" default="1" min="0.001" max="20" decimals="3"><name>From distance multiplier</name></parameter>
+    <parameter type="animated" name="to_z_dist_adjust" default="1" min="0.001" max="20" decimals="3"><name>To distance multiplier</name></parameter>
+    <parameter type="animated" name="from_rotate_adjust" default="0" min="-360" max="360" decimals="2"><name>From rotation adjustment</name></parameter>
+    <parameter type="animated" name="to_rotate_adjust" default="0" min="-360" max="360" decimals="2"><name>To rotation adjustment</name></parameter>
+    <parameter type="animated" name="from_shift_x_adjust" default="0" min="-2" max="2" decimals="3"><name>From horizontal shift adjustment</name></parameter>
+    <parameter type="animated" name="from_shift_y_adjust" default="0" min="-2" max="2" decimals="3"><name>From vertical shift adjustment</name></parameter>
+    <parameter type="animated" name="to_shift_x_adjust" default="0" min="-2" max="2" decimals="3"><name>To horizontal shift adjustment</name></parameter>
+    <parameter type="animated" name="to_shift_y_adjust" default="0" min="-2" max="2" decimals="3"><name>To vertical shift adjustment</name></parameter>
+    <parameter type="animated" name="center_x_adjust" default="0" min="-1" max="1" decimals="3"><name>Center X adjustment</name></parameter>
+    <parameter type="animated" name="center_y_adjust" default="0" min="-1" max="1" decimals="3"><name>Center Y adjustment</name></parameter>
+    <parameter type="animated" name="brightness_adjust" default="1" min="0" max="4" decimals="3"><name>Brightness multiplier</name></parameter>
+    <parameter type="animated" name="exposure_bias_adjust" default="0" min="-0.5" max="0.5" decimals="3"><name>Exposure bias adjustment</name></parameter>
+    <parameter type="animated" name="wrap_x" default="2" min="0" max="2" decimals="0"><name>Horizontal edge mode (0 black, 1 tile, 2 reflect)</name></parameter>
+    <parameter type="animated" name="wrap_y" default="2" min="0" max="2" decimals="0"><name>Vertical edge mode (0 black, 1 tile, 2 reflect)</name></parameter>
+    <parameter type="animated" name="subpixel" default="1" min="0" max="1" decimals="0"><name>Subpixel sampling</name></parameter>
+    <parameter type="animated" name="quality_samples" default="17" min="2" max="65" decimals="0"><name>Transform samples</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="from_z_dist" default="1" />
+    <parameter type="fixed" name="to_z_dist" default="1" />
+    <parameter type="fixed" name="from_rotate" default="0" />
+    <parameter type="fixed" name="to_rotate" default="0" />
+    <parameter type="fixed" name="from_shift_x" default="0" />
+    <parameter type="fixed" name="from_shift_y" default="0" />
+    <parameter type="fixed" name="to_shift_x" default="0" />
+    <parameter type="fixed" name="to_shift_y" default="0" />
+    <parameter type="fixed" name="center_x" default="0.5" />
+    <parameter type="fixed" name="center_y" default="0.5" />
+    <parameter type="fixed" name="brightness" default="1" />
+    <parameter type="fixed" name="exposure_bias" default="0.5" />
+    <parameter type="fixed" name="native_nominal_frames" default="0" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_curve_start" default="0" />
+    <parameter type="fixed" name="native_curve_end" default="1" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

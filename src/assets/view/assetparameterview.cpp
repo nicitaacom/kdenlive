@@ -160,7 +160,43 @@ void AssetParameterView::setModel(const std::shared_ptr<AssetParameterModel> &mo
             m_widgets.push_back(w);
         }
     }
-    setMinimumHeight(contentHeight());
+    // Animated effect controls are added to the shared form layout by
+    // KeyframeContainer::addParameter(). Reopening a project can create these
+    // rows before the parent effect-stack delegate has been shown; querying the
+    // cached layout size at that point may omit the newly inserted rows and
+    // leave the fixed-height effect row clipping their controls. Recompute the
+    // layout before publishing its height to the effect stack.
+    m_lay->invalidate();
+    m_lay->activate();
+    const int parameterHeight = contentHeight();
+    if (addSpacer) {
+        setMinimumHeight(parameterHeight);
+    } else {
+        // Effect-stack rows use a fixed-height child widget. Updating only its
+        // minimum height leaves the widget at the short size it received
+        // before KeyframeContainer added its parameter rows, clipping the
+        // controls while leaving an empty area below the keyframe ruler.
+        setFixedHeight(parameterHeight);
+    }
+    // The effect stack creates its parameter view before it installs the view
+    // in the stack widget and connects updateHeight. At this point the rows
+    // exist, but Qt may not yet have assigned geometry to the hidden editor.
+    // Recompute after the parent effect row has been constructed so it gets
+    // the full height of animated controls when a project is reopened.
+    QMetaObject::invokeMethod(this, [this]() {
+        if (!m_model || !m_lay) {
+            return;
+        }
+        m_lay->invalidate();
+        m_lay->activate();
+        const int parameterHeight = contentHeight();
+        if (sizePolicy().verticalPolicy() == QSizePolicy::Fixed) {
+            setFixedHeight(parameterHeight);
+        } else {
+            setMinimumHeight(parameterHeight);
+        }
+        Q_EMIT updateHeight();
+    }, Qt::QueuedConnection);
     // Ensure effect parameters are adjusted to current position
     Monitor *monitor = pCore->getMonitor(m_model->monitorId);
     Q_EMIT monitor->seekPosition(monitor->position());

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_spatial_blur" id="kdenlive_spatial_blur" type="video">
+    <name>Directional and Radial Blur</name>
+    <description>Native CPU blur along a selected direction or away from a center. Samples reflected source pixels. Its radius and sample kernel are documented approximations of the VEGAS Linear and Radial Blur effects.</description>
+    <author>Kdenlive</author>
+    <parameter type="list" name="mode" default="0" paramlist="0;1"><name>Linear;Radial</name></parameter>
+    <parameter type="list" name="radial_type" default="1" paramlist="0;1;2"><name>Proportional;Fixed radius;Gaussian</name></parameter>
+    <parameter type="animated" name="amount_adjust" default="0" min="-1" max="1" decimals="3"><name>Blur amount adjustment</name></parameter>
+    <parameter type="animated" name="angle_adjust" default="0" min="-360" max="360" decimals="2"><name>Angle adjustment</name></parameter>
+    <parameter type="animated" name="center_x_adjust" default="0" min="-1" max="1" decimals="3"><name>Center X adjustment</name></parameter>
+    <parameter type="animated" name="center_y_adjust" default="0" min="-1" max="1" decimals="3"><name>Center Y adjustment</name></parameter>
+    <parameter type="animated" name="quality_samples" default="17" min="1" max="65" decimals="0"><name>Blur samples</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="amount" default="0" />
+    <parameter type="fixed" name="angle" default="0" />
+    <parameter type="fixed" name="center_x" default="0.5" />
+    <parameter type="fixed" name="center_y" default="0.5" />
+    <parameter type="fixed" name="native_nominal_frames" default="0" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_curve_start" default="0" />
+    <parameter type="fixed" name="native_curve_end" default="1" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

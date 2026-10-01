@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_motion_vector_blur" id="kdenlive_motion_vector_blur" type="video">
+    <name>Motion Vector Blur</name>
+    <description>Estimate motion between neighboring transformed source frames and integrate source pixels along the measured vectors. The native CPU block-flow algorithm differs from proprietary RSMB tracking. Blur amount follows source motion, whose playback speed remains unchanged when the event is stretched.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="blur_amount" default="0.65" min="0" max="8" decimals="3"><name>Blur amount</name></parameter>
+    <parameter type="animated" name="blur_envelope_adjust" default="1" min="0" max="1" decimals="3"><name>Transition blur envelope</name></parameter>
+    <parameter type="animated" name="motion_sensitivity" default="80" min="0" max="300" decimals="1"><name>Motion sensitivity (1920px reference)</name></parameter>
+    <parameter type="animated" name="quality_samples" default="8" min="1" max="32" decimals="0"><name>Blur samples</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="native_nominal_frames" default="0" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_curve_start" default="0" />
+    <parameter type="fixed" name="native_curve_end" default="1" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

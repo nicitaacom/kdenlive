@@ -52,9 +52,9 @@ int getImage(mlt_frame frame, uint8_t **image, mlt_image_format *format, int *wi
                                    ? mlt_properties_get_int(properties, "native_nominal_frames") : context.eventFrames);
     const int position = std::clamp(static_cast<int>(mlt_filter_get_position(filter, frame)), 0, context.eventFrames - 1);
     const int keyframePosition = context.filterIn + position;
-    const char *role = mlt_properties_get(properties, "native_event_role");
-    const double progress = context.eventFrames > 1 ? static_cast<double>(position) / (context.eventFrames - 1)
-                                                    : (role && QByteArray(role) == "incoming" ? 0.0 : 1.0);
+    context.curveStart = mlt_properties_get_double(properties, "native_curve_start");
+    context.curveEnd = mlt_properties_get_double(properties, "native_curve_end");
+    const double progress = fittedProgress(properties, position, context.eventFrames);
     const double shutterAngle = parameterAt(context, "shutter_angle", progress);
     const bool motionBlur = mlt_properties_anim_get_int(properties, "motion_blur_enable", keyframePosition,
                                                          context.animationLength) != 0;
@@ -139,6 +139,8 @@ extern "C" mlt_filter createNativeCornerPin(mlt_profile profile, mlt_service_typ
     mlt_properties_set(properties, "native_event_role", "outgoing");
     mlt_properties_set_int(properties, "native_nominal_frames", 0);
     mlt_properties_set_int(properties, "native_event_frames", 0);
+    mlt_properties_set_double(properties, "native_curve_start", 0.0);
+    mlt_properties_set_double(properties, "native_curve_end", 1.0);
     for (const char *name : {"tl_x", "bl_x", "tr_y", "br_y", "bulge_x_adjust", "bulge_y_adjust",
                              "shutter_angle_adjust", "tl_x_adjust", "tl_y_adjust", "tr_x_adjust", "tr_y_adjust",
                              "bl_x_adjust", "bl_y_adjust", "br_x_adjust", "br_y_adjust"}) {

@@ -3,6 +3,7 @@
 */
 
 #include "motioncurve.hpp"
+#include "parallelrows.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -117,6 +118,104 @@ double evaluate(const QVector<Key> &keys, double time, double fallback)
     return cubic(left.value, left.outValue, right.inValue, right.value, (lower + upper) * 0.5);
 }
 
+double evaluateExtrapolated(const QVector<Key> &keys, double time, double fallback)
+{
+    if (keys.isEmpty()) {
+        return fallback;
+    }
+    if (keys.size() < 2 || (time >= keys.first().time && time <= keys.last().time)) {
+        return evaluate(keys, time, fallback);
+    }
+
+    const bool before = time < keys.first().time;
+    const Key &left = before ? keys[0] : keys[keys.size() - 2];
+    const Key &right = before ? keys[1] : keys.last();
+    const double dt = right.time - left.time;
+    if (dt <= 0) {
+        return before ? left.value : right.value;
+    }
+    if (left.interpolationCode == 2) {
+        return before ? left.value : right.value;
+    }
+    if (left.interpolationCode == 0) {
+        const double slope = (right.value - left.value) / dt;
+        return (before ? left.value : right.value) +
+               (time - (before ? left.time : right.time)) * slope;
+    }
+
+    // Continue the endpoint tangent of an explicit Bezier segment. The time
+    // handles are clamped the same way as in evaluate(); when an endpoint
+    // handle is vertical, fall back to the nearest finite secant.
+    const double x1 = std::clamp(left.outTime, left.time, right.time);
+    const double x2 = std::clamp(right.inTime, left.time, right.time);
+    const double startDx = x1 - left.time;
+    const double startDy = left.outValue - left.value;
+    const double endDx = right.time - x2;
+    const double endDy = right.value - right.inValue;
+    double slope = 0;
+    if (before) {
+        if (std::abs(startDx) > 1e-12) {
+            slope = startDy / startDx;
+        } else if (std::abs(right.time - x2) > 1e-12) {
+            slope = (right.inValue - left.value) / (x2 - left.time);
+        } else {
+            slope = (right.value - left.value) / dt;
+        }
+        return left.value + (time - left.time) * slope;
+    }
+    if (std::abs(endDx) > 1e-12) {
+        slope = endDy / endDx;
+    } else if (std::abs(x1 - left.time) > 1e-12) {
+        slope = (right.value - left.outValue) / (right.time - x1);
+    } else {
+        slope = (right.value - left.value) / dt;
+    }
+    return right.value + (time - right.time) * slope;
+}
+
+double evaluateEventCurve(const QVector<Key> &keys, double time, double fallback,
+                          double eventStart, double eventEnd)
+{
+    if (keys.isEmpty()) {
+        return fallback;
+    }
+    if (!std::isfinite(time)) {
+        return fallback;
+    }
+    if (!std::isfinite(eventStart) || !std::isfinite(eventEnd) || eventEnd <= eventStart) {
+        return evaluate(keys, time, fallback);
+    }
+    const auto valueAtEventTime = [&](double position) {
+        // The animated track owns its value even where the first key is
+        // sparse: hold that key before it, and hold the last key after it.
+        // The serialized static property is commonly the last edited value,
+        // not a trustworthy event-start value for an animated parameter.
+        return evaluate(keys, position, fallback);
+    };
+    if (time >= eventStart && time <= eventEnd) {
+        // Keys that start or end inside the selected event hold their nearest
+        // animated endpoint through unkeyed time. Do not extrapolate a
+        // key-to-key slope across unkeyed clip time.
+        return valueAtEventTime(time);
+    }
+
+    const bool before = time < eventStart;
+    const double endpoint = before ? eventStart : eventEnd;
+    const double value = valueAtEventTime(endpoint);
+    const double epsilon = std::min(1e-5, (eventEnd - eventStart) * 1e-3);
+    if (epsilon <= 0.0) {
+        return value;
+    }
+    // Extend the effective event edge for shutter samples only. This preserves
+    // motion blur across a moving cut while a sparse track with no motion at
+    // the event edge has a zero tangent there.
+    const double neighbor = before ? endpoint + epsilon : endpoint - epsilon;
+    const double neighboringValue = valueAtEventTime(neighbor);
+    const double slope = before ? (neighboringValue - value) / epsilon
+                                : (value - neighboringValue) / epsilon;
+    return value + (time - endpoint) * slope;
+}
+
 int reflectIndex(int index, int length)
 {
     if (length <= 1) {
@@ -139,19 +238,42 @@ int tileIndex(int index, int length)
     return wrapped < 0 ? wrapped + length : wrapped;
 }
 
+double fittedShutterFrames(double sourceShutterFrames, double gain, double envelope,
+                           int eventFrames, int nominalFrames)
+{
+    if (eventFrames <= 1 || !std::isfinite(sourceShutterFrames) || !std::isfinite(gain) ||
+        !std::isfinite(envelope)) {
+        return 0.0;
+    }
+    const double eventSpan = static_cast<double>(std::max(1, eventFrames - 1));
+    const double nominalSpan = static_cast<double>(std::max(1, nominalFrames - 1));
+    const double fitted = sourceShutterFrames * std::max(0.0, gain) * std::max(0.0, envelope) * eventSpan / nominalSpan;
+    return std::isfinite(fitted) ? std::max(0.0, fitted) : 0.0;
+}
+
 static Pixel tap(const uint8_t *image, int width, int height, int x, int y, int wrapX, int wrapY)
 {
     if (wrapX == 2) {
-        x = reflectIndex(x, width);
+        // Most samples stay inside the image. Avoid the signed modulo in
+        // reflectIndex() for that common path; the result is exactly x there.
+        if (x < 0 || x >= width) {
+            x = reflectIndex(x, width);
+        }
     } else if (wrapX == 1) {
-        x = tileIndex(x, width);
+        if (x < 0 || x >= width) {
+            x = tileIndex(x, width);
+        }
     } else if (x < 0 || x >= width) {
         return {0, 0, 0, 1};
     }
     if (wrapY == 2) {
-        y = reflectIndex(y, height);
+        if (y < 0 || y >= height) {
+            y = reflectIndex(y, height);
+        }
     } else if (wrapY == 1) {
-        y = tileIndex(y, height);
+        if (y < 0 || y >= height) {
+            y = tileIndex(y, height);
+        }
     } else if (y < 0 || y >= height) {
         return {0, 0, 0, 1};
     }
@@ -219,6 +341,66 @@ Point mapAxisStretch(int x, int y, int width, int height, double scaleX, double 
     const double cy = (height - 1) * 0.5;
     return {cx + (x - cx - shiftX * width) * zDistance / scaleX,
             cy + (y - cy - shiftY * height) * zDistance / scaleY};
+}
+
+Point mapMagnify(int x, int y, int width, int height, double centerX, double centerY,
+                 double magnifyAmount, double magnifyRelX, double magnifyRelY,
+                 double lensRadius, double lensEdgeWidth, double lensRelWidth,
+                 double lensRelHeight, double lensRotate, double lensEdgeShape,
+                 double pixelAspectRatio)
+{
+    const double aspect = pixelAspectRatio > 0 ? pixelAspectRatio : 1.0;
+    const double cx = centerX * width - 0.5;
+    const double cy = (1.0 - centerY) * height - 0.5;
+    const double radians = lensRotate * (3.14159265358979323846 / 180.0);
+    const double cosine = std::cos(radians);
+    const double sine = std::sin(radians);
+    const double dx = (x - cx) * aspect;
+    const double dy = y - cy;
+    const double rx = cosine * dx + sine * dy;
+    const double ry = -sine * dx + cosine * dy;
+    const double reference = std::max(1.0, std::min(width * aspect, static_cast<double>(height)) * 0.5);
+    const double radiusX = std::max(0.001, lensRadius * lensRelWidth * reference);
+    const double radiusY = std::max(0.001, lensRadius * lensRelHeight * reference);
+    const double normalizedRadius = std::hypot(rx / radiusX, ry / radiusY);
+    double weight = 1.0;
+    if (normalizedRadius > 1.0) {
+        const double edge = std::max(1e-6, lensEdgeWidth);
+        weight = std::clamp(1.0 - (normalizedRadius - 1.0) / edge, 0.0, 1.0);
+        // The source's Edge Shape=1 has a smooth taper. Other values blend
+        // toward a linear taper. The proprietary kernel is not public.
+        const double smooth = weight * weight * (3.0 - 2.0 * weight);
+        weight = (1.0 - std::clamp(lensEdgeShape, 0.0, 1.0)) * weight +
+                 std::clamp(lensEdgeShape, 0.0, 1.0) * smooth;
+    }
+    const double scaleX = std::max(0.001, magnifyAmount * magnifyRelX);
+    const double scaleY = std::max(0.001, magnifyAmount * magnifyRelY);
+    const double sourceRX = rx * (1.0 - weight + weight / scaleX);
+    const double sourceRY = ry * (1.0 - weight + weight / scaleY);
+    return {cx + (cosine * sourceRX - sine * sourceRY) / aspect,
+            cy + sine * sourceRX + cosine * sourceRY};
+}
+
+Point mapWaves(int x, int y, int width, int height, const WaveWarpSettings &settings)
+{
+    const double aspect = std::isfinite(settings.pixelAspectRatio) && settings.pixelAspectRatio > 0
+                              ? settings.pixelAspectRatio : 1.0;
+    const double zoom = std::isfinite(settings.zoom) ? std::max(0.001, settings.zoom) : 1.0;
+    const double cx = settings.centerX * width - 0.5;
+    const double cy = settings.centerY * height - 0.5;
+    const double shortestSide = std::max(1.0, std::min(width * aspect, static_cast<double>(height)));
+    const double angle = settings.angleDegrees * (3.14159265358979323846 / 180.0);
+    const double displacementAngle = (settings.angleDegrees + settings.displacementAngleDegrees) *
+                                     (3.14159265358979323846 / 180.0);
+    const double worldX = (x - cx) * aspect;
+    const double worldY = cy - y;
+    const double phase = 2.0 * 3.14159265358979323846 *
+                         (settings.frequency * (worldX * std::cos(angle) + worldY * std::sin(angle)) / shortestSide +
+                          settings.phase);
+    const double displacement = settings.amplitude * shortestSide * std::sin(phase);
+    const double sourceWorldX = worldX / zoom - displacement * std::cos(displacementAngle);
+    const double sourceWorldY = worldY / zoom - displacement * std::sin(displacementAngle);
+    return {cx + sourceWorldX / aspect, cy - sourceWorldY};
 }
 
 CornerPinMapping makeCornerPin(Point topLeft, Point topRight, Point bottomLeft, Point bottomRight,
@@ -339,7 +521,11 @@ void renderRgba(const uint8_t *source, uint8_t *output, int width, int height,
     double totalWeight = 0;
     for (int index = 0; index < samples; ++index) {
         const double sampleFraction = (index + 0.5) / samples;
-        const double t = std::clamp(progress + shift + (sampleFraction - 0.5) * shutter, 0.0, 1.0);
+        // The shutter continues the endpoint trajectory across the event
+        // boundary. Clamping here creates a pile-up of samples at the final
+        // transform and can make the first/last transition frames look sharp.
+        // evaluateExtrapolated() continues the curve tangent for these samples.
+        const double t = progress + shift + (sampleFraction - 0.5) * shutter;
         const Transform transform = transformAt(t, context);
         const double radians = transform.rotateDegrees * (3.14159265358979323846 / 180.0);
         const double weight = std::max(0.0, 1.0 + (2.0 * exposure - 1.0) * (2.0 * sampleFraction - 1.0));
@@ -349,7 +535,7 @@ void renderRgba(const uint8_t *source, uint8_t *output, int width, int height,
     if (totalWeight <= 0) {
         totalWeight = 1;
     }
-    for (int y = 0; y < height; ++y) {
+    parallelRows(height, [&](int y) {
         for (int x = 0; x < width; ++x) {
             Pixel accumulated;
             for (const State &state : std::as_const(states)) {
@@ -359,8 +545,10 @@ void renderRgba(const uint8_t *source, uint8_t *output, int width, int height,
                 const double dx = (x - cx - tr.shiftX * width) * aspect;
                 const double dy = y - cy - tr.shiftY * height;
                 const double distance = std::max(0.001, tr.zDistance);
-                const double sx = cx + (state.cosine * dx + state.sine * dy) * distance / aspect;
-                const double sy = cy + (-state.sine * dx + state.cosine * dy) * distance;
+                const double scaleX = std::max(0.001, tr.scaleX);
+                const double scaleY = std::max(0.001, tr.scaleY);
+                const double sx = cx + (state.cosine * dx + state.sine * dy) * distance / (aspect * scaleX);
+                const double sy = cy + (-state.sine * dx + state.cosine * dy) * distance / scaleY;
                 const Pixel p = sampleRgba(source, width, height, sx, sy,
                                            settings.wrapX, settings.wrapY, settings.subpixel);
                 accumulated.r += p.r * state.weight;
@@ -379,7 +567,7 @@ void renderRgba(const uint8_t *source, uint8_t *output, int width, int height,
             destination[2] = channel(accumulated.b);
             destination[3] = static_cast<uint8_t>(std::clamp(std::round(alpha * 255.0), 0.0, 255.0));
         }
-    }
+    });
 }
 
 } // namespace NativeMotion

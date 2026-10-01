@@ -47,9 +47,7 @@ int getImage(mlt_frame frame, uint8_t **image, mlt_image_format *format, int *wi
     const int position = std::clamp(static_cast<int>(mlt_filter_get_position(filter, frame)), 0, eventFrames - 1);
     const int keyframePosition = static_cast<int>(mlt_filter_get_in(filter)) + position;
     const int animationLength = std::max(1, static_cast<int>(mlt_filter_get_out(filter)) + 1);
-    const char *role = mlt_properties_get(properties, "native_event_role");
-    const double progress = eventFrames > 1 ? static_cast<double>(position) / (eventFrames - 1)
-                                             : (role && QByteArray(role) == "incoming" ? 0.0 : 1.0);
+    const double progress = fittedProgress(properties, position, eventFrames);
     const double amount = frameParameter(properties, curves, "amount", progress, keyframePosition, animationLength, 0, false);
     const double centerX = frameParameter(properties, curves, "center_x", progress, keyframePosition, animationLength, 0, false);
     const double centerY = frameParameter(properties, curves, "center_y", progress, keyframePosition, animationLength, 0, false);
@@ -110,6 +108,8 @@ extern "C" mlt_filter createNativeFisheye(mlt_profile profile, mlt_service_type 
     mlt_properties_set(properties, "native_curves", "{}");
     mlt_properties_set(properties, "native_event_role", "outgoing");
     mlt_properties_set_int(properties, "native_event_frames", 0);
+    mlt_properties_set_double(properties, "native_curve_start", 0.0);
+    mlt_properties_set_double(properties, "native_curve_end", 1.0);
     mlt_properties_set_double(properties, "amount", 0);
     mlt_properties_set_double(properties, "center_x", 0.5);
     mlt_properties_set_double(properties, "center_y", 0.5);

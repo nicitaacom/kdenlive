@@ -47,9 +47,7 @@ int getImage(mlt_frame frame, uint8_t **image, mlt_image_format *format, int *wi
     const int position = std::clamp(static_cast<int>(mlt_filter_get_position(filter, frame)), 0, eventFrames - 1);
     const int keyframePosition = static_cast<int>(mlt_filter_get_in(filter)) + position;
     const int animationLength = std::max(1, static_cast<int>(mlt_filter_get_out(filter)) + 1);
-    const char *role = mlt_properties_get(properties, "native_event_role");
-    const double progress = eventFrames > 1 ? static_cast<double>(position) / (eventFrames - 1)
-                                             : (role && QByteArray(role) == "incoming" ? 0.0 : 1.0);
+    const double progress = fittedProgress(properties, position, eventFrames);
     const double scaleX = frameParameter(properties, curves, "scale_x", progress, keyframePosition, animationLength, 1, true);
     const double scaleY = frameParameter(properties, curves, "scale_y", progress, keyframePosition, animationLength, 1, true);
     const double shiftX = frameParameter(properties, curves, "shift_x", progress, keyframePosition, animationLength, 0, false);
@@ -62,6 +60,15 @@ int getImage(mlt_frame frame, uint8_t **image, mlt_image_format *format, int *wi
         !std::isfinite(zDistance) || std::abs(scaleX) < 1e-6 || std::abs(scaleY) < 1e-6 || zDistance < 1e-6) {
         mlt_pool_release(output);
         return 1;
+    }
+    // Preserve the original frame exactly at an identity endpoint. Sampling
+    // through the generic bilinear path needlessly changes a few pixel values
+    // even when the transform is neutral, leaving a faint residual effect.
+    constexpr double epsilon = 1e-10;
+    if (std::abs(scaleX - 1.0) <= epsilon && std::abs(scaleY - 1.0) <= epsilon &&
+        std::abs(zDistance - 1.0) <= epsilon && std::abs(shiftX) <= epsilon && std::abs(shiftY) <= epsilon) {
+        mlt_pool_release(output);
+        return 0;
     }
     for (int y = 0; y < *height; ++y) {
         for (int x = 0; x < *width; ++x) {
@@ -107,6 +114,8 @@ extern "C" mlt_filter createNativeAxisStretch(mlt_profile profile, mlt_service_t
     mlt_properties_set(properties, "native_curves", "{}");
     mlt_properties_set(properties, "native_event_role", "outgoing");
     mlt_properties_set_int(properties, "native_event_frames", 0);
+    mlt_properties_set_double(properties, "native_curve_start", 0.0);
+    mlt_properties_set_double(properties, "native_curve_end", 1.0);
     for (const char *name : {"scale_x", "scale_y", "z_distance", "scale_x_adjust", "scale_y_adjust", "z_distance_adjust"}) {
         mlt_properties_set_double(properties, name, 1);
     }

@@ -124,9 +124,7 @@ int getImage(mlt_frame frame, uint8_t **image, mlt_image_format *format, int *wi
     const int nominalFrames = std::max(1, mlt_properties_get_int(properties, "native_nominal_frames") > 0
                                        ? mlt_properties_get_int(properties, "native_nominal_frames") : eventFrames);
     const int position = std::clamp(static_cast<int>(mlt_filter_get_position(filter, frame)), 0, eventFrames - 1);
-    const char *role = mlt_properties_get(properties, "native_event_role");
-    const double progress = eventFrames > 1 ? static_cast<double>(position) / (eventFrames - 1)
-                                             : (role && QByteArray(role) == "incoming" ? 0.0 : 1.0);
+    const double progress = fittedProgress(properties, position, eventFrames);
     mlt_profile profile = mlt_service_profile(MLT_FILTER_SERVICE(filter));
     const double fps = profile && profile->frame_rate_den > 0
                            ? static_cast<double>(profile->frame_rate_num) / profile->frame_rate_den : 25.0;
@@ -141,6 +139,8 @@ int getImage(mlt_frame frame, uint8_t **image, mlt_image_format *format, int *wi
     context.frameRate = fps;
     context.filterIn = filterIn;
     context.animationLength = animationLength;
+    context.curveStart = mlt_properties_get_double(properties, "native_curve_start");
+    context.curveEnd = mlt_properties_get_double(properties, "native_curve_end");
     SampleSettings settings;
     settings.samples = mlt_properties_anim_get_int(properties, "motion_blur", keyframePosition, animationLength)
                            ? std::clamp(mlt_properties_anim_get_int(properties, "quality_samples", keyframePosition, animationLength), 1, 64) : 1;
@@ -182,6 +182,8 @@ extern "C" mlt_filter createNativeShake(mlt_profile profile, mlt_service_type ty
     mlt_properties_set(properties, "native_curves", "{}");
     mlt_properties_set(properties, "native_event_role", "outgoing");
     mlt_properties_set_int(properties, "native_event_frames", 0);
+    mlt_properties_set_double(properties, "native_curve_start", 0.0);
+    mlt_properties_set_double(properties, "native_curve_end", 1.0);
     mlt_properties_set_int(properties, "native_nominal_frames", 0);
     mlt_properties_set_double(properties, "amplitude", 0);
     mlt_properties_set_double(properties, "frequency", 1);

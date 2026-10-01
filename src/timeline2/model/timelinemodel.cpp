@@ -13,6 +13,7 @@
 #include "clipmodel.hpp"
 #include "compositionmodel.hpp"
 #include "core.h"
+#include "mainwindow.h"
 #include "doc/documentchecker.h"
 #include "doc/docundostack.hpp"
 #include "doc/kdenlivedoc.h"
@@ -23,6 +24,7 @@
 #include "profiles/profilemodel.hpp"
 #include "snapmodel.hpp"
 #include "timeline2/view/previewmanager.h"
+#include "timeline2/view/timelinewidget.h"
 #include "timeline2/view/dialogs/autotrackcreationdialog.h"
 #include "timelinefunctions.hpp"
 
@@ -33,6 +35,7 @@
 #include <QCryptographicHash>
 #include <QDebug>
 #include <QModelIndex>
+#include <QTimer>
 #include <QThread>
 #include <mlt++/MltConsumer.h>
 #include <mlt++/MltField.h>
@@ -5853,6 +5856,28 @@ QVariantList TimelineModel::addClipEffect(int clipId, const QString &effectId, b
         }
     }
     if (result) {
+        // Timeline effects can be dropped from the Effects browser without
+        // moving the playhead. In the compact single-monitor layout the
+        // visible Clip Monitor may still be bound to a source clip (or hold a
+        // stale frame), so explicitly bind it to the processed timeline and
+        // refresh after apply, undo, and redo.
+        auto refreshMonitor = []() {
+            // Effect stack commands can replug their MLT filters while the
+            // monitor still has a frame request in flight. Refresh on the
+            // next event-loop turn so that request cannot overwrite the new
+            // graph with its old frame after apply, undo, or redo.
+            QTimer::singleShot(0, pCore->window(), []() {
+                auto *manager = pCore->monitorManager();
+                auto *timeline = pCore->window() ? pCore->window()->getCurrentTimeline() : nullptr;
+                if (manager && timeline && timeline->model()) {
+                    manager->refreshTimelineAfterEffect(timeline->model()->tractor()->position());
+                }
+            });
+            return true;
+        };
+        PUSH_LAMBDA(refreshMonitor, undo);
+        PUSH_LAMBDA(refreshMonitor, redo);
+        refreshMonitor();
         pCore->pushUndo(undo, redo, i18n("Add effect %1", EffectsRepository::get()->getName(effectId)));
     } else if (notify) {
         QString effectName = EffectsRepository::get()->getName(effectId);

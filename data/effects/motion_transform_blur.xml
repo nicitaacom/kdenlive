@@ -8,9 +8,13 @@
     <parameter type="animated" name="center_y_adjust" default="0" min="-2" max="2" decimals="3"><name>Center Y adjustment (frame fraction)</name></parameter>
     <parameter type="animated" name="shift_x_adjust" default="0" min="-8" max="8" decimals="3"><name>Shift X adjustment (frame fraction)</name></parameter>
     <parameter type="animated" name="shift_y_adjust" default="0" min="-8" max="8" decimals="3"><name>Shift Y adjustment (frame fraction)</name></parameter>
+    <parameter type="animated" name="scale_x_adjust" default="1" min="0.001" max="8" decimals="3"><name>Horizontal scale multiplier</name></parameter>
+    <parameter type="animated" name="scale_y_adjust" default="1" min="0.001" max="8" decimals="3"><name>Vertical scale multiplier</name></parameter>
     <parameter type="animated" name="z_distance_adjust" default="1" min="0.001" max="8" decimals="3"><name>Z distance multiplier</name></parameter>
     <parameter type="animated" name="rotation_adjust" default="0" min="-180" max="180" decimals="2"><name>Rotation adjustment (degrees)</name></parameter>
     <parameter type="animated" name="shutter_duration_adjust" default="0" min="-16" max="16" decimals="3"><name>Shutter duration adjustment (frames)</name></parameter>
+    <parameter type="animated" name="shutter_gain_adjust" default="1" min="0" max="16" decimals="2"><name>Motion path blur gain</name></parameter>
+    <parameter type="animated" name="shutter_envelope_adjust" default="1" min="0" max="4" decimals="2"><name>Shutter envelope adjustment</name></parameter>
     <parameter type="animated" name="shutter_shift_adjust" default="0" min="-8" max="8" decimals="3"><name>Shutter shift adjustment (frames)</name></parameter>
     <parameter type="animated" name="exposure_bias_adjust" default="0" min="-1" max="1" decimals="3"><name>Exposure bias adjustment</name></parameter>
     <parameter type="animated" name="brightness_adjust" default="1" min="0" max="8" decimals="3"><name>Brightness multiplier</name></parameter>
@@ -23,14 +27,20 @@
     <parameter type="fixed" name="center_y" default="0.5" />
     <parameter type="fixed" name="shift_x" default="0" />
     <parameter type="fixed" name="shift_y" default="0" />
+    <parameter type="fixed" name="scale_x" default="1" />
+    <parameter type="fixed" name="scale_y" default="1" />
     <parameter type="fixed" name="z_distance" default="1" />
     <parameter type="fixed" name="rotation" default="0" />
     <parameter type="fixed" name="shutter_duration" default="1" />
+    <parameter type="fixed" name="shutter_gain" default="1" />
+    <parameter type="fixed" name="shutter_envelope" default="1" />
     <parameter type="fixed" name="shutter_shift" default="0" />
     <parameter type="fixed" name="exposure_bias" default="0.5" />
     <parameter type="fixed" name="brightness" default="1" />
     <parameter type="fixed" name="native_nominal_frames" default="0" />
     <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_curve_start" default="0" />
+    <parameter type="fixed" name="native_curve_end" default="1" />
     <parameter type="fixed" name="native_event_role" default="outgoing" />
     <parameter type="fixed" name="native_fit_version" default="0" />
     <parameter type="fixed" name="native_preset_id" default="" />

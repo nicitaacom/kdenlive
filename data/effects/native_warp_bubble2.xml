@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_warp_bubble2" id="kdenlive_warp_bubble2" type="video">
+    <name>Bubble Pattern Warp</name>
+    <description>Two seeded, overlapping bubble displacement fields. Their smooth CPU warp, animation, zoom, and edge modes are editable; the proprietary Sapphire bubble kernel is reconstructed.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="a_amplitude" default="0" min="-2" max="2" decimals="4"><name>A amplitude (frame fraction)</name></parameter>
+    <parameter type="animated" name="a_frequency" default="1" min="0.01" max="64" decimals="3"><name>A frequency</name></parameter>
+    <parameter type="animated" name="a_octaves" default="1" min="1" max="10" decimals="0"><name>A octaves</name></parameter>
+    <parameter type="animated" name="a_seed" default="0.23" min="0" max="1000000" decimals="3"><name>A seed</name></parameter>
+    <parameter type="animated" name="a_shift_start_x" default="0" min="-2" max="2" decimals="4"><name>A shift start X</name></parameter>
+    <parameter type="animated" name="a_shift_start_y" default="0" min="-2" max="2" decimals="4"><name>A shift start Y</name></parameter>
+    <parameter type="animated" name="a_speed_x" default="0" min="-1" max="1" decimals="4"><name>A speed X</name></parameter>
+    <parameter type="animated" name="a_speed_y" default="0" min="-1" max="1" decimals="4"><name>A speed Y</name></parameter>
+    <parameter type="animated" name="b_amplitude" default="0" min="-2" max="2" decimals="4"><name>B amplitude (frame fraction)</name></parameter>
+    <parameter type="animated" name="b_frequency" default="1" min="0.01" max="64" decimals="3"><name>B frequency</name></parameter>
+    <parameter type="animated" name="b_octaves" default="1" min="1" max="10" decimals="0"><name>B octaves</name></parameter>
+    <parameter type="animated" name="b_seed" default="0.34" min="0" max="1000000" decimals="3"><name>B seed</name></parameter>
+    <parameter type="animated" name="b_shift_start_x" default="0" min="-2" max="2" decimals="4"><name>B shift start X</name></parameter>
+    <parameter type="animated" name="b_shift_start_y" default="0" min="-2" max="2" decimals="4"><name>B shift start Y</name></parameter>
+    <parameter type="animated" name="b_speed_x" default="0" min="-1" max="1" decimals="4"><name>B speed X</name></parameter>
+    <parameter type="animated" name="b_speed_y" default="0" min="-1" max="1" decimals="4"><name>B speed Y</name></parameter>
+    <parameter type="animated" name="z_distance" default="1" min="0.01" max="8" decimals="4"><name>Z distance</name></parameter>
+    <parameter type="animated" name="wrap_x" default="2" min="0" max="2" decimals="0"><name>Horizontal edge mode</name></parameter>
+    <parameter type="animated" name="wrap_y" default="2" min="0" max="2" decimals="0"><name>Vertical edge mode</name></parameter>
+    <parameter type="animated" name="subpixel" default="1" min="0" max="1" decimals="0"><name>Subpixel sampling</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_nominal_frames" default="20" />
+    <parameter type="fixed" name="native_curve_start" default="0" />
+    <parameter type="fixed" name="native_curve_end" default="1" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

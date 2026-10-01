@@ -919,3 +919,20 @@ void MonitorManager::markMonitorDirty(Kdenlive::MonitorId name, const QUuid uuid
         m_projectMonitor->markDirty(uuid);
     }
 }
+
+void MonitorManager::refreshTimelineAfterEffect(int timelinePosition)
+{
+    if (!m_clipMonitor || projectMonitorVisible() || !clipMonitorVisible() || !pCore->window()) {
+        pCore->refreshProjectMonitorOnce(true);
+        return;
+    }
+    auto *timeline = pCore->window()->getCurrentTimeline();
+    if (!timeline || !timeline->controller() || !timeline->model() || !timeline->model()->producer()) {
+        return;
+    }
+    const auto model = timeline->model();
+    m_clipMonitor->slotOpenClip(nullptr);
+    m_clipMonitor->setProducer(model->uuid(), model->producer(), timelinePosition);
+    m_clipMonitor->adjustRulerSize(qMax(0, timeline->controller()->duration() - 1));
+    refreshClipMonitor(true);
+}

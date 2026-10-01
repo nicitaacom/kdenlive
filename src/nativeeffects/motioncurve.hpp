@@ -25,14 +25,21 @@ using Curves = QHash<QByteArray, QVector<Key>>;
 
 Curves parseCurves(const QByteArray &json, bool *valid = nullptr);
 double evaluate(const QVector<Key> &keys, double time, double fallback);
+double evaluateExtrapolated(const QVector<Key> &keys, double time, double fallback);
+double evaluateEventCurve(const QVector<Key> &keys, double time, double fallback,
+                          double eventStart = 0.0, double eventEnd = 1.0);
 int reflectIndex(int index, int length);
 int tileIndex(int index, int length);
+double fittedShutterFrames(double sourceShutterFrames, double gain, double envelope,
+                           int eventFrames, int nominalFrames);
 
 struct Transform {
     double centerX = 0.5;
     double centerY = 0.5;
     double shiftX = 0;
     double shiftY = 0;
+    double scaleX = 1;
+    double scaleY = 1;
     double zDistance = 1;
     double rotateDegrees = 0;
 };
@@ -61,6 +68,18 @@ struct Point {
     double y = 0;
 };
 
+struct WaveWarpSettings {
+    double centerX = 0.5;
+    double centerY = 0.5;
+    double amplitude = 0.0;
+    double frequency = 1.0;
+    double angleDegrees = 0.0;
+    double displacementAngleDegrees = 90.0;
+    double phase = 0.0;
+    double zoom = 1.0;
+    double pixelAspectRatio = 1.0;
+};
+
 Pixel sampleRgba(const uint8_t *image, int width, int height, double x, double y,
                  int wrapX, int wrapY, bool subpixel);
 Point mapFisheye(int x, int y, int width, int height, double centerX, double centerY,
@@ -68,6 +87,12 @@ Point mapFisheye(int x, int y, int width, int height, double centerX, double cen
                  double shiftOrigX, double shiftOrigY, double pixelAspectRatio);
 Point mapAxisStretch(int x, int y, int width, int height, double scaleX, double scaleY,
                      double shiftX, double shiftY, double zDistance);
+Point mapMagnify(int x, int y, int width, int height, double centerX, double centerY,
+                 double magnifyAmount, double magnifyRelX, double magnifyRelY,
+                 double lensRadius, double lensEdgeWidth, double lensRelWidth,
+                 double lensRelHeight, double lensRotate, double lensEdgeShape,
+                 double pixelAspectRatio);
+Point mapWaves(int x, int y, int width, int height, const WaveWarpSettings &settings);
 
 struct CornerPinMapping {
     // Output unit coordinates to source unit coordinates, with denominator 1 + h[6]x + h[7]y.

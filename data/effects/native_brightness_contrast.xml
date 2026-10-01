@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_brightness_contrast" id="kdenlive_brightness_contrast" type="video">
+    <name>Brightness and Contrast (native)</name>
+    <description>Source-derived whole-event brightness and contrast curves. Brightness is the normalized source control added to RGB; contrast uses a 1+2x multiplier around Contrast Center. The proprietary VEGAS kernel is not reproduced.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="brightness_adjust" default="0" min="-1" max="1" decimals="3"><name>Brightness adjustment</name></parameter>
+    <parameter type="animated" name="contrast_adjust" default="0" min="-1" max="1" decimals="3"><name>Contrast adjustment</name></parameter>
+    <parameter type="animated" name="contrast_center_adjust" default="0" min="-1" max="1" decimals="3"><name>Contrast center adjustment</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="brightness" default="0" />
+    <parameter type="fixed" name="contrast" default="0" />
+    <parameter type="fixed" name="contrast_center" default="0.5" />
+    <parameter type="fixed" name="native_nominal_frames" default="0" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_curve_start" default="0" />
+    <parameter type="fixed" name="native_curve_end" default="1" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

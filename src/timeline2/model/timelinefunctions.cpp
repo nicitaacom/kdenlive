@@ -166,6 +166,8 @@ bool TimelineFunctions::processClipCut(const std::shared_ptr<TimelineItemModel> 
     bool hasStartMix = timeline->getTrackById_const(trackId)->hasStartMix(clipId);
     int subplaylist = timeline->m_allClips[clipId]->getSubPlaylistIndex();
     PlaylistState::ClipState state = timeline->m_allClips[clipId]->clipState();
+    const int originalIn = timeline->m_allClips[clipId]->getIn();
+    const auto originalNativeKeys = timeline->getClipEffectStackModel(clipId)->captureNativeSplitKeyframes();
     // Check if clip has an end Mix
     bool res = cloneClip(timeline, clipId, newId, state, -1, undo, redo);
     if (!res) {
@@ -216,6 +218,13 @@ bool TimelineFunctions::processClipCut(const std::shared_ptr<TimelineItemModel> 
     }
     updatedDuration = duration - newDuration;
     res = res && timeline->requestItemResize(newId, updatedDuration, false, true, undo, redo);
+    if (res) {
+        // Both halves initially inherit the same normalized native curve.
+        // Partition its original frame-inclusive span after their lengths have
+        // been set, so the appearance continues across the cut.
+        res = timeline->getClipEffectStackModel(clipId)->partitionNativeForSplit(newDuration, duration, false, originalNativeKeys, originalIn, undo, redo) &&
+              timeline->getClipEffectStackModel(newId)->partitionNativeForSplit(newDuration, duration, true, originalNativeKeys, originalIn, undo, redo);
+    }
     // The next requestclipmove does not check for duration change since we don't invalidate timeline, so check duration change now
     bool durationChanged = trackDuration != timeline->getTrackById_const(trackId)->trackDuration();
     if (hasEndMix) {

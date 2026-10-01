@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_distort_chroma" id="kdenlive_distort_chroma" type="video">
+    <name>Lens-Gradient Chroma Distortion</name>
+    <description>Separates source color samples along a luminance gradient reconstructed from the same source frame. Sapphire's exact sampling kernel and its optional Lens input connection are not encoded in this Vegas record.</description>
+    <author>Kdenlive</author>
+    <parameter type="animated" name="amount_adjust" default="1" min="0" max="4" decimals="3"><name>Distortion amount multiplier</name></parameter>
+    <parameter type="animated" name="blur_lens" default="0" min="0" max="0.25" decimals="3"><name>Lens blur radius fraction</name></parameter>
+    <parameter type="animated" name="rotate_warp_dir" default="0" min="-720" max="720" decimals="2"><name>Rotate warp direction</name></parameter>
+    <parameter type="animated" name="warp_red" default="0.5" min="-4" max="4" decimals="3"><name>Red warp strength</name></parameter>
+    <parameter type="animated" name="warp_blue" default="1" min="-4" max="4" decimals="3"><name>Blue warp strength</name></parameter>
+    <parameter type="animated" name="amount_rel_x" default="1" min="0" max="4" decimals="3"><name>Horizontal amount</name></parameter>
+    <parameter type="animated" name="amount_rel_y" default="1" min="0" max="4" decimals="3"><name>Vertical amount</name></parameter>
+    <parameter type="animated" name="steps" default="8" min="3" max="100" decimals="0"><name>Spectral samples</name></parameter>
+    <parameter type="animated" name="wrap_x" default="2" min="0" max="2" decimals="0"><name>Horizontal edge mode</name></parameter>
+    <parameter type="animated" name="wrap_y" default="2" min="0" max="2" decimals="0"><name>Vertical edge mode</name></parameter>
+    <parameter type="animated" name="subpixel" default="1" min="0" max="1" decimals="0"><name>Subpixel sampling</name></parameter>
+    <parameter type="fixed" name="native_curves" default="{}" />
+    <parameter type="fixed" name="amount" default="0" />
+    <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_event_role" default="outgoing" />
+    <parameter type="fixed" name="native_fit_version" default="0" />
+    <parameter type="fixed" name="native_preset_id" default="" />
+    <parameter type="fixed" name="native_preset_schema_version" default="0" />
+</effect>

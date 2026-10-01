@@ -18,6 +18,21 @@ PARAMETERS = {
     "Exposure Bias": "exposure_bias", "Brightness": "brightness",
 }
 
+# These source controls are inert for the decoded transition records: no Mocha
+# project or mask is selected, and the corresponding modes are disabled. Keep
+# their expected defaults explicit so future records cannot silently discard a
+# newly used source operation.
+INACTIVE_DEFAULTS = {
+    "Mode": 0, "Mocha Project": None, "group_0": 0,
+    "Blur Mocha": 0, "Mocha Opacity": 1, "Invert Mocha": 0,
+    "Resize Mocha": 1, "Resize Rel X": 1, "Resize Rel Y": 1,
+    "Shift Mocha X": 0, "Shift Mocha Y": 0, "Bypass Mocha": 0,
+    "Show Mocha Only": 0, "Combine Masks": 0, "Blur Res": 0,
+    "Mask Use": 0, "Blur Mask": 0.00625, "Invert Mask": 0,
+    "Crop Input": 0, "Crop Left": 0, "Crop Right": 0,
+    "Crop Top": 0, "Crop Bottom": 0,
+}
+
 
 def native_linear_points(parameter: dict, first: float, span: float) -> list[list[float]]:
     """Provisional linear reconstruction; these are not decoded source interpolation types."""
@@ -25,6 +40,18 @@ def native_linear_points(parameter: dict, first: float, span: float) -> list[lis
              (point["time"] - first) / span, point["value"],
              (point["time"] - first) / span, point["value"], 0]
             for point in parameter["animation"]["points"]]
+
+
+def sapphire_center_to_raster(value: list[float]) -> tuple[float, float]:
+    """Convert the package's normalized lower-left Center to raster coordinates.
+
+    The supplied Vegas FX reference shows Center=(0.50, 0.50) for frame center;
+    the corner-spin records use X=0 or X=1. Native raster sampling has its
+    origin at top left, so flip only Y when converting the normalized point.
+    """
+    if len(value) < 2:
+        raise ValueError("Sapphire Center must contain X and Y")
+    return float(value[0]), 1.0 - float(value[1])
 
 
 def base_fixture(footage: Path, source_in: int, frames: int,
@@ -43,14 +70,8 @@ def base_fixture(footage: Path, source_in: int, frames: int,
     return ET.ElementTree(root), producer
 
 
-def fixture(inventory: dict, exact_name: str, footage: Path, source_in: int, frames: int,
-            width: int, height: int, fps_num: int, fps_den: int) -> ET.ElementTree:
-    record = next((r for package in inventory["packages"] for r in package["records"]
-                   if r["exact_name"] == exact_name), None)
-    if record is None:
-        raise ValueError(f"source preset not found: {exact_name}")
-    component = next((c for c in record["components"] if c["vendor_id"].endswith("S_BlurMoCurves}")), None)
-    if component is None or not component["parameters"]:
+def motion_properties(record: dict, component: dict, frames: int) -> dict:
+    if not component["parameters"]:
         raise ValueError("no decoded S_BlurMoCurves component")
     timing = record["normalized_event_time_conversion"]
     if timing is None:
@@ -58,11 +79,11 @@ def fixture(inventory: dict, exact_name: str, footage: Path, source_in: int, fra
     first = timing["first_source_position"]
     span = timing["last_source_position"] - first
     curves = {}
-    properties = {}
+    properties = {"mlt_service": "kdenlive_motion_curve"}
     for parameter in component["parameters"]:
         name = parameter["name"]
         if name == "Center" and isinstance(parameter["value"], list):
-            properties["center_x"], properties["center_y"] = parameter["value"][:2]
+            properties["center_x"], properties["center_y"] = sapphire_center_to_raster(parameter["value"])
         elif name in PARAMETERS and parameter["value"] is not None:
             target = PARAMETERS[name]
             properties[target] = parameter["value"]
@@ -76,15 +97,35 @@ def fixture(inventory: dict, exact_name: str, footage: Path, source_in: int, fra
             properties[name.lower().replace(" ", "_")] = parameter["value"]
         elif name == "Subpixel":
             properties["subpixel"] = parameter["value"]
+        elif name in INACTIVE_DEFAULTS:
+            if parameter["animation"] or parameter["value"] != INACTIVE_DEFAULTS[name]:
+                raise ValueError(f"unsupported active BlurMoCurves control: {name}")
+        elif name in ("Enable GPU", "version", "version2"):
+            if parameter["animation"]:
+                raise ValueError(f"unsupported animated BlurMoCurves metadata: {name}")
+        else:
+            raise ValueError(f"unhandled BlurMoCurves control: {name}")
     properties.update(native_curves=json.dumps(curves, separators=(",", ":")),
                       native_nominal_frames=record["nominal_frames"], native_event_frames=frames,
                       native_event_role=record["event_variant"], quality_samples=8)
+    return properties
+
+
+def fixture(inventory: dict, exact_name: str, footage: Path, source_in: int, frames: int,
+            width: int, height: int, fps_num: int, fps_den: int) -> ET.ElementTree:
+    record = next((r for package in inventory["packages"] for r in package["records"]
+                   if r["exact_name"] == exact_name), None)
+    if record is None:
+        raise ValueError(f"source preset not found: {exact_name}")
+    component = next((c for c in record["components"] if c["vendor_id"].endswith("S_BlurMoCurves}")), None)
+    if component is None:
+        raise ValueError("no decoded S_BlurMoCurves component")
+    properties = motion_properties(record, component, frames)
     tree, producer = base_fixture(footage, source_in, frames, width, height, fps_num, fps_den)
     # A filter attached to the original source producer uses source-frame
     # coordinates. The playlist entry cuts that producer into a timed event.
     effect = ET.SubElement(producer, "filter", {"in": str(source_in),
                                                  "out": str(source_in + frames - 1)})
-    ET.SubElement(effect, "property", {"name": "mlt_service"}).text = "kdenlive_motion_curve"
     for key, value in properties.items():
         ET.SubElement(effect, "property", {"name": key}).text = str(value)
     return tree

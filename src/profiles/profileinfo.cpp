@@ -36,26 +36,22 @@ bool ProfileInfo::isCompatible(Mlt::Profile *other) const
 
 bool ProfileInfo::hasValidFps() const
 {
-    double fps = double(frame_rate_num()) / frame_rate_den();
+    const auto num = frame_rate_num();
+    const auto den = frame_rate_den();
+    double fps = double(num) / den;
     double fps_int;
     double fps_frac = std::modf(fps, &fps_int);
     if (fps_frac > 0.) {
-        // Check for 23.98, 29.97, 59.94
-        bool validFps = false;
-        if (qFuzzyCompare(fps_int, 23.0)) {
-            if (qFuzzyCompare(fps, 23.98)) {
-                validFps = true;
-            }
-        } else if (qFuzzyCompare(fps_int, 29.0)) {
-            if (qFuzzyCompare(fps, 29.97)) {
-                validFps = true;
-            }
-        } else if (qFuzzyCompare(fps_int, 59.0)) {
-            if (qFuzzyCompare(fps, 59.94)) {
-                validFps = true;
-            }
-        }
-        return validFps;
+        // The project profiles store broadcast rates as exact rational values
+        // (24000/1001, 30000/1001, and 60000/1001). Comparing those values
+        // with the rounded labels 23.98, 29.97, and 59.94 rejects valid
+        // 23.976/29.97/59.94 projects because their difference is larger than
+        // qFuzzyCompare's tolerance.
+        const auto isRate = [num, den](qint64 standardNum, qint64 standardDen) {
+            return qint64(num) * standardDen == standardNum * qint64(den);
+        };
+        return isRate(24000, 1001) || isRate(30000, 1001) || isRate(60000, 1001) || qFuzzyCompare(fps, 23.98) || qFuzzyCompare(fps, 29.97) ||
+               qFuzzyCompare(fps, 59.94);
     }
     // Integer fps
     return true;

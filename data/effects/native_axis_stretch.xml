@@ -19,6 +19,8 @@
     <parameter type="fixed" name="shift_y" default="0" />
     <parameter type="fixed" name="z_distance" default="1" />
     <parameter type="fixed" name="native_event_frames" default="0" />
+    <parameter type="fixed" name="native_curve_start" default="0" />
+    <parameter type="fixed" name="native_curve_end" default="1" />
     <parameter type="fixed" name="native_event_role" default="outgoing" />
     <parameter type="fixed" name="native_fit_version" default="0" />
     <parameter type="fixed" name="native_preset_id" default="" />

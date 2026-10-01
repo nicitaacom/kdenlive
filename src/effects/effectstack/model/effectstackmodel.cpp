@@ -9,6 +9,7 @@
 #include "doc/docundostack.hpp"
 #include "effectgroupmodel.hpp"
 #include "effectitemmodel.hpp"
+#include "nativepresetanimation.hpp"
 #include "effects/effectsrepository.hpp"
 #include "macros.hpp"
 #include "mainwindow.h"
@@ -18,10 +19,127 @@
 #include <QJsonParseError>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <stack>
 #include <utility>
 #include <vector>
+
+namespace {
+
+using NativeParameters = QVector<QPair<QString, QVariant>>;
+
+std::pair<NativeParameters, NativeParameters> refitNativeAdjustmentKeys(const std::shared_ptr<EffectItemModel> &effect,
+                                                                        int oldIn, int oldDuration, int newIn, int newDuration)
+{
+    NativeParameters oldValues;
+    NativeParameters newValues;
+    const auto keyframable = effect->getKeyframableParameters();
+    for (auto it = keyframable.cbegin(); it != keyframable.cend(); ++it) {
+        const QString name = it.key();
+        const QByteArray property = name.toUtf8();
+        const char *raw = effect->filter().get(property.constData());
+        if (!raw || !std::strchr(raw, '=')) {
+            continue;
+        }
+        Mlt::Properties source;
+        effect->passProperties(source);
+        source.set("value", raw);
+        (void)source.anim_get_double("value", oldIn, oldIn + oldDuration);
+        Mlt::Animation keys = source.get_animation("value");
+        if (!keys.is_valid() || keys.key_count() < 1) {
+            continue;
+        }
+        Mlt::Properties fitted;
+        effect->passProperties(fitted);
+        for (int index = 0; index < keys.key_count(); ++index) {
+            const int oldFrame = keys.key_get_frame(index);
+            const double relative = oldDuration > 1
+                                        ? std::clamp(static_cast<double>(oldFrame - oldIn) / (oldDuration - 1), 0.0, 1.0)
+                                        : 0.0;
+            const int newFrame = newIn + static_cast<int>(std::lround(relative * std::max(0, newDuration - 1)));
+            const double value = source.anim_get_double("value", oldFrame, oldIn + oldDuration);
+            fitted.anim_set("value", value, newFrame, newIn + newDuration, keys.key_get_type(index));
+        }
+        Mlt::Animation fittedKeys = fitted.get_animation("value");
+        char *serialized = fittedKeys.serialize_cut();
+        if (serialized) {
+            oldValues.append({name, QString::fromUtf8(raw)});
+            newValues.append({name, QString::fromUtf8(serialized)});
+            free(serialized);
+        }
+    }
+    return {oldValues, newValues};
+}
+
+std::pair<NativeParameters, NativeParameters> partitionNativeAdjustmentKeys(const std::shared_ptr<EffectItemModel> &effect,
+                                                                             const QMap<QString, QString> &originalValues,
+                                                                             int originalIn, int originalFrames,
+                                                                             double segmentStart, double segmentEnd)
+{
+    NativeParameters oldValues;
+    NativeParameters newValues;
+    const int filterIn = effect->filter().get_in();
+    const int eventFrames = std::max(1, effect->filter().get_int("native_event_frames"));
+    const int lastFrame = std::max(0, eventFrames - 1);
+    const int animationLength = filterIn + eventFrames;
+    const int originalLastFrame = std::max(0, originalFrames - 1);
+    const int originalAnimationLength = originalIn + originalFrames;
+    for (auto it = originalValues.cbegin(); it != originalValues.cend(); ++it) {
+        const QString name = it.key();
+        const QByteArray property = name.toUtf8();
+        const char *raw = effect->filter().get(property.constData());
+        if (!raw || !std::strchr(raw, '=')) {
+            continue;
+        }
+        Mlt::Properties source;
+        effect->passProperties(source);
+        source.set("value", it.value().toUtf8().constData());
+        (void)source.anim_get_double("value", originalIn, originalAnimationLength);
+        Mlt::Animation keys = source.get_animation("value");
+        if (!keys.is_valid() || keys.key_count() < 1) {
+            continue;
+        }
+        const auto valueAt = [&](double normalized) {
+            const double frame = originalIn + std::clamp(normalized, 0.0, 1.0) * originalLastFrame;
+            const int lower = static_cast<int>(std::floor(frame));
+            const int upper = std::min(originalIn + originalLastFrame, lower + 1);
+            const double first = source.anim_get_double("value", lower, originalAnimationLength);
+            const double second = source.anim_get_double("value", upper, originalAnimationLength);
+            return first + (second - first) * (frame - lower);
+        };
+        Mlt::Properties sliced;
+        effect->passProperties(sliced);
+        sliced.anim_set("value", valueAt(segmentStart), filterIn, animationLength, keys.key_get_type(0));
+        if (lastFrame > 0 && segmentEnd > segmentStart) {
+            for (int index = 0; index < keys.key_count(); ++index) {
+                const int sourceFrame = keys.key_get_frame(index);
+                const double sourceTime = static_cast<double>(sourceFrame - originalIn) / originalLastFrame;
+                if (sourceTime <= segmentStart || sourceTime >= segmentEnd) {
+                    continue;
+                }
+                const double localTime = (sourceTime - segmentStart) / (segmentEnd - segmentStart);
+                const int targetFrame = filterIn + static_cast<int>(std::lround(localTime * lastFrame));
+                sliced.anim_set("value", source.anim_get_double("value", sourceFrame, originalAnimationLength),
+                                targetFrame, animationLength, keys.key_get_type(index));
+            }
+            sliced.anim_set("value", valueAt(segmentEnd), filterIn + lastFrame, animationLength,
+                            keys.key_get_type(keys.key_count() - 1));
+        }
+        Mlt::Animation slicedKeys = sliced.get_animation("value");
+        char *serialized = slicedKeys.serialize_cut();
+        if (serialized) {
+            oldValues.append({name, QString::fromUtf8(raw)});
+            newValues.append({name, QString::fromUtf8(serialized)});
+            free(serialized);
+        }
+    }
+    return {oldValues, newValues};
+}
+
+} // namespace
 
 EffectStackModel::EffectStackModel(std::weak_ptr<Mlt::Service> service, ObjectId ownerId, std::weak_ptr<DocUndoStack> undo_stack)
     : AbstractTreeModel()
@@ -416,6 +534,11 @@ bool EffectStackModel::fromMltXml(const QDomElement &effectsXml)
 bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &redo)
 {
     QDomNodeList nodeList = effectsXml.elementsByTagName(QStringLiteral("effect"));
+    if (effectsXml.attribute(QStringLiteral("nativePresetVersion")) == QLatin1String("1") &&
+        m_ownerId.type != KdenliveObjectType::TimelineClip) {
+        pCore->displayMessage(i18n("Native transition presets can only be applied to timeline clips."), ErrorMessage);
+        return false;
+    }
     int parentIn = effectsXml.attribute(QStringLiteral("parentIn")).toInt();
     int currentIn = pCore->getItemIn(m_ownerId);
     const int transitionFrames = effectsXml.attribute(QStringLiteral("transitionFrames")).toInt();
@@ -444,6 +567,20 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
                 return false;
             }
             uniqueEffects.append(effectId);
+            const QDomNodeList templateProperties = node.elementsByTagName(QStringLiteral("property"));
+            for (int propertyIndex = 0; propertyIndex < templateProperties.count(); ++propertyIndex) {
+                const QDomElement property = templateProperties.item(propertyIndex).toElement();
+                const QString propertyName = property.attribute(QStringLiteral("name"));
+                const QString animation = property.text().trimmed();
+                if (propertyName.endsWith(QLatin1String("_adjust")) && animation.contains(QLatin1Char('='))) {
+                    QString fitted;
+                    if (!NativePresetAnimation::fitScalarAnimation(animation, transitionFrames,
+                                                                    pCore->getItemDuration(m_ownerId), currentIn,
+                                                                    transitionRole == QLatin1String("out"), &fitted)) {
+                        return false;
+                    }
+                }
+            }
             std::unique_ptr<Mlt::Filter> candidate = EffectsRepository::get()->getEffect(effectId);
             if (!candidate || !candidate->is_valid()) {
                 pCore->displayMessage(i18n("Native transition component %1 is unavailable.", effectId), ErrorMessage);
@@ -588,6 +725,24 @@ bool EffectStackModel::fromXml(const QDomElement &effectsXml, Fun &undo, Fun &re
                 continue;
             }
             if (keyframeParams.contains(pName)) {
+                if (isNativeFittedPreset) {
+                    QString value = pnode.text().trimmed();
+                    if (pName.endsWith(QLatin1String("_adjust")) && value.contains(QLatin1Char('='))) {
+                        QString fitted;
+                        if (!NativePresetAnimation::fitScalarAnimation(value, transitionFrames,
+                                                                       pCore->getItemDuration(m_ownerId), currentIn,
+                                                                       transitionRole == QLatin1String("out"), &fitted)) {
+                            return false;
+                        }
+                        value = fitted;
+                    } else if (!value.contains(QLatin1Char('='))) {
+                        // Native source curves live in native_curves. Scalar
+                        // defaults still need an animation origin at zero.
+                        value.prepend(QLatin1String("0="));
+                    }
+                    parameters.append(QPair<QString, QVariant>(pName, QVariant(value)));
+                    continue;
+                }
                 // This is a keyframable parameter, fix offset
                 int currentDuration = pCore->getItemDuration(m_ownerId);
                 if (currentDuration > 1) {
@@ -741,6 +896,19 @@ bool EffectStackModel::copyEffectWithUndo(const std::shared_ptr<AbstractEffectIt
     }
     auto effect = EffectItemModel::construct(effectId, shared_from_this(), enabled);
     effect->setParameters(sourceEffect->getAllParameters());
+    if (sourceEffect->filter().get_int("native_fit_version") == 1) {
+        // The preset's normalized timing and source identity are fixed MLT
+        // properties, so getAllParameters() does not include them. Preserve
+        // them when a timeline clip is split, duplicated, or copied.
+        for (const char *name : {"native_fit_version", "native_preset_id", "native_preset_schema_version",
+                                 "native_nominal_frames", "native_event_frames", "native_event_role",
+                                 "native_curve_start", "native_curve_end"}) {
+            const char *value = sourceEffect->filter().get(name);
+            if (value) {
+                effect->filter().set(name, value);
+            }
+        }
+    }
     if (sourceEffect->isBuiltIn()) {
         effect->setBuiltIn();
     }
@@ -843,6 +1011,11 @@ bool EffectStackModel::appendEffect(const QString &effectId, bool makeCurrent, s
 std::pair<bool, bool> EffectStackModel::doAppendEffect(const QString &effectId, bool makeCurrent, stringMap params, Fun &undo, Fun &redo)
 {
     QWriteLocker locker(&m_lock);
+    if (EffectsRepository::get()->getType(effectId) == AssetListType::AssetType::Pending) {
+        pCore->displayMessage(i18n("Transition %1 is pending native reconstruction and cannot be applied yet.", EffectsRepository::get()->getName(effectId)),
+                              InformationMessage, 6000);
+        return {false, true};
+    }
     if ((m_ownerId.type == KdenliveObjectType::TimelineClip || m_ownerId.type == KdenliveObjectType::TimelineTrack) && pCore->window() &&
         pCore->window()->effectIsMasterOnly(effectId)) {
         pCore->displayMessage(i18n("Effect %1 can only be added to master", EffectsRepository::get()->getName(effectId)), ErrorMessage);
@@ -856,7 +1029,9 @@ std::pair<bool, bool> EffectStackModel::doAppendEffect(const QString &effectId, 
     std::unordered_set<int> previousFadeOut = m_fadeOuts;
     if (EffectsRepository::get()->isGroup(effectId)) {
         QDomElement doc = EffectsRepository::get()->getXml(effectId);
-        return {copyXmlEffect(doc), false};
+        // The caller owns the undo command, including all rows in the group.
+        // Pushing a nested command here makes the outer add a no-op on undo.
+        return {copyXmlEffectWithUndo(doc, undo, redo), false};
     }
     auto effect = EffectItemModel::construct(effectId, shared_from_this());
     PlaylistState::ClipState state = pCore->getItemState(m_ownerId).first;
@@ -975,14 +1150,17 @@ bool EffectStackModel::adjustStackLength(bool adjustFromEnd, int oldIn, int oldD
             const int oldFilterOut = effect->filter().get_out();
             const int oldFrames = effect->filter().get_int("native_event_frames");
             const int newOut = newIn + duration - 1;
-            Fun operation = [effect, newIn, newOut, duration]() {
+            const auto fitted = refitNativeAdjustmentKeys(effect, oldIn, oldDuration, newIn, duration);
+            Fun operation = [effect, newIn, newOut, duration, fitted]() {
                 effect->filter().set_in_and_out(newIn, newOut);
                 effect->filter().set("native_event_frames", duration);
+                effect->setParameters(fitted.second, false);
                 return true;
             };
-            Fun reverse = [effect, oldFilterIn, oldFilterOut, oldFrames]() {
+            Fun reverse = [effect, oldFilterIn, oldFilterOut, oldFrames, fitted]() {
                 effect->filter().set_in_and_out(oldFilterIn, oldFilterOut);
                 effect->filter().set("native_event_frames", oldFrames);
+                effect->setParameters(fitted.first, false);
                 return true;
             };
             operation();
@@ -1128,6 +1306,84 @@ bool EffectStackModel::adjustStackLength(bool adjustFromEnd, int oldIn, int oldD
                 PUSH_LAMBDA(reverse, undo);
             }
         }
+    }
+    return true;
+}
+
+EffectStackModel::NativeSplitKeyframes EffectStackModel::captureNativeSplitKeyframes()
+{
+    QReadLocker locker(&m_lock);
+    NativeSplitKeyframes snapshot;
+    for (const auto &leaf : rootItem->getLeaves()) {
+        QMap<QString, QString> values;
+        const auto item = std::static_pointer_cast<AbstractEffectItem>(leaf);
+        if (item->effectItemType() != EffectItemType::Group) {
+            const auto effect = std::static_pointer_cast<EffectItemModel>(leaf);
+            if (effect->filter().get_int("native_fit_version") == 1) {
+                const auto keyframable = effect->getKeyframableParameters();
+                for (auto it = keyframable.cbegin(); it != keyframable.cend(); ++it) {
+                    const QByteArray name = it.key().toUtf8();
+                    const char *raw = effect->filter().get(name.constData());
+                    if (raw && std::strchr(raw, '=')) {
+                        values.insert(it.key(), QString::fromUtf8(raw));
+                    }
+                }
+            }
+        }
+        snapshot.append(values);
+    }
+    return snapshot;
+}
+
+bool EffectStackModel::partitionNativeForSplit(int leftFrames, int originalFrames, bool rightHalf,
+                                               const NativeSplitKeyframes &originalKeys, int originalIn,
+                                               Fun &undo, Fun &redo)
+{
+    QWriteLocker locker(&m_lock);
+    if (originalFrames < 2 || leftFrames < 1 || leftFrames >= originalFrames) {
+        return false;
+    }
+    const double lastFrame = static_cast<double>(originalFrames - 1);
+    const double leftEnd = static_cast<double>(leftFrames - 1) / lastFrame;
+    const double rightStart = static_cast<double>(leftFrames) / lastFrame;
+    const auto leaves = rootItem->getLeaves();
+    if (static_cast<qsizetype>(leaves.size()) != originalKeys.size()) {
+        return false;
+    }
+    for (qsizetype row = 0; row < originalKeys.size(); ++row) {
+        const auto &leaf = leaves.at(static_cast<size_t>(row));
+        const auto item = std::static_pointer_cast<AbstractEffectItem>(leaf);
+        if (item->effectItemType() == EffectItemType::Group) {
+            continue;
+        }
+        const auto effect = std::static_pointer_cast<EffectItemModel>(leaf);
+        if (effect->filter().get_int("native_fit_version") != 1) {
+            continue;
+        }
+        const double start = effect->filter().get_double("native_curve_start");
+        const double end = effect->filter().get_double("native_curve_end");
+        if (!std::isfinite(start) || !std::isfinite(end) || start < 0.0 || end > 1.0 || start > end) {
+            return false;
+        }
+        const double nextStart = rightHalf ? start + (end - start) * rightStart : start;
+        const double nextEnd = rightHalf ? end : start + (end - start) * leftEnd;
+        const auto keys = partitionNativeAdjustmentKeys(effect, originalKeys.at(row), originalIn, originalFrames,
+                                                        rightHalf ? rightStart : 0.0, rightHalf ? 1.0 : leftEnd);
+        Fun operation = [effect, nextStart, nextEnd, keys]() {
+            effect->filter().set("native_curve_start", nextStart);
+            effect->filter().set("native_curve_end", nextEnd);
+            effect->setParameters(keys.second, false);
+            return true;
+        };
+        Fun reverse = [effect, start, end, keys]() {
+            effect->filter().set("native_curve_start", start);
+            effect->filter().set("native_curve_end", end);
+            effect->setParameters(keys.first, false);
+            return true;
+        };
+        operation();
+        PUSH_LAMBDA(operation, redo);
+        PUSH_LAMBDA(reverse, undo);
     }
     return true;
 }

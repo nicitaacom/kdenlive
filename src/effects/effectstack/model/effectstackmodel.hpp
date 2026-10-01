@@ -8,8 +8,10 @@
 #include "abstractmodel/abstracttreemodel.hpp"
 #include "definitions.h"
 
+#include <QMap>
 #include <QReadWriteLock>
 #include <QUuid>
+#include <QVector>
 #include <memory>
 #include <mlt++/Mlt.h>
 #include <unordered_set>
@@ -78,6 +80,11 @@ public:
     /** @brief Adjust an effect duration (useful for fades) */
     bool adjustFadeLength(int duration, bool fromStart, bool audioFade, bool videoFade, bool logUndo);
     bool adjustStackLength(bool adjustFromEnd, int oldIn, int oldDuration, int newIn, int duration, int offset, Fun &undo, Fun &redo, bool logUndo);
+    /** @brief Keep a fitted native animation continuous when an event is cut. */
+    using NativeSplitKeyframes = QVector<QMap<QString, QString>>;
+    NativeSplitKeyframes captureNativeSplitKeyframes();
+    bool partitionNativeForSplit(int leftFrames, int originalFrames, bool rightHalf, const NativeSplitKeyframes &originalKeys,
+                                int originalIn, Fun &undo, Fun &redo);
 
     void slotCreateGroup(const std::shared_ptr<EffectItemModel> &childEffect);
 

@@ -10,12 +10,15 @@
 
 #include <QDir>
 #include <QFuture>
+#include <QHash>
 #include <QMutex>
 #include <QProcess>
 #include <QTimer>
 #include <QUuid>
+#include <memory>
 
 class TimelineController;
+class QTemporaryDir;
 
 namespace Mlt {
 class Tractor;
@@ -112,6 +115,15 @@ private:
     int m_processedChunks;
     /** @brief: The render process output, useful in case of failure */
     QString m_errorLog;
+    std::unique_ptr<QTemporaryDir> m_ramDir;
+    QHash<int, int> m_ramChunkLengths;
+    qint64 m_ramLimitBytes = 0;
+    qint64 m_ramUsedBytes = 0;
+    int m_ramZoneStart = -1;
+    int m_ramRequestedEnd = -1;
+    int m_ramPlannedEnd = -1;
+    int m_ramRenderedEnd = -1;
+    bool m_ramActive = false;
     /** @brief: After an undo/redo, if we have preview history, use it. */
     void reloadChunks(const QVariantList &chunks);
     /** @brief: A chunk failed to render, abort. */
@@ -140,6 +152,10 @@ private Q_SLOTS:
 public Q_SLOTS:
     /** @brief: Prepare and start rendering. */
     void startPreviewRender();
+    /** Render the selected timeline zone into a bounded, temporary RAM cache. */
+    bool startRamPreviewRender(const QPoint &zone, int limitMB);
+    /** Release RAM preview producers before deleting their backing files. */
+    void clearRamPreview();
     /** @brief: A chunk has been created, notify ruler. */
     void gotPreviewRender(int frame, const QString &file, int progress);
     /** @brief: a timeline operation caused changes to frames between startFrame and endFrame. */

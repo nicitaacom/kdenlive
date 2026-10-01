@@ -797,7 +797,7 @@ Rectangle {
                             leftPadding: 2
                             rightPadding: 2
                             font: K.UiUtils.smallestReadableFont
-                            color: '#ffffff'
+                            color: activePalette.text
                         }
                         MouseArea {
                             id: markerArea
@@ -1408,7 +1408,7 @@ Rectangle {
                             left: debugCidRect.left
                             leftMargin: itemBorder.border.width
                         }
-                        color: 'white'
+                        color: activePalette.text
                     }
                 }
                 Rectangle {
@@ -1432,7 +1432,7 @@ Rectangle {
                             left: labelRect.left
                             leftMargin: itemBorder.border.width
                         }
-                        color: "#FFFFFF"
+                        color: activePalette.text
                         //style: Text.Outline
                         //styleColor: 'black'
                     }
@@ -1473,7 +1473,7 @@ Rectangle {
                                 topMargin: 1
                                 leftMargin: 1
                             }
-                            color: 'white'
+                            color: activePalette.text
                             style: Text.Outline
                             styleColor: 'black'
                         }
@@ -1506,7 +1506,7 @@ Rectangle {
 
                             icon {
                                 name: 'tools-wizard'
-                                color: clipRoot.isStackEnabled ? 'black' : 'white'
+                                color: activePalette.text
                                 height: effectLabel.height
                                 width: effectLabel.height
                             }
@@ -1533,7 +1533,7 @@ Rectangle {
                             leftMargin: 2
                             rightMargin: 2
                         }
-                        color: 'white'
+                        color: activePalette.text
                         styleColor: 'black'
                     }
                }
@@ -1583,8 +1583,8 @@ Rectangle {
                             leftMargin: (labelRect.height-proxyLabel.width)/2
                             topMargin: (labelRect.height-proxyLabel.height)/2
                         }
-                        color: 'white'
-                        styleColor: 'white'
+                        color: activePalette.text
+                        styleColor: activePalette.text
                     }
                 }
             }

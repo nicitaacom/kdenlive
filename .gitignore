@@ -23,3 +23,12 @@ compile_commands.json
 
 # Artefacts from running KDE CI locally
 kde-ci-reports/*
+
+# Rendered transition validation videos are generated artifacts.
+*.mp4
+*.mkv
+
+# Python bytecode and local renderer scratch log.
+__pycache__/
+*.py[cod]
+/.log

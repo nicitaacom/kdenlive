@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QLayout>
 #include <QPainter>
+#include <QTabBar>
 #include <QStyleOptionTab>
 #include <QWidget>
 
@@ -73,13 +74,19 @@ QSize UiDensityStyle::sizeFromContents(ContentsType type, const QStyleOption *op
 
 void UiDensityStyle::drawControl(ControlElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget) const
 {
-    if (element == CE_TabBarTabShape && option && (option->state & State_Selected)) {
-        const QColor accent = option->palette.color(QPalette::Highlight);
+    if (element == CE_TabBarTabShape && option) {
+        QProxyStyle::drawControl(element, option, painter, widget);
+        const auto *tabOption = qstyleoption_cast<const QStyleOptionTab *>(option);
+        if (!tabOption || (tabOption->shape != QTabBar::RoundedNorth && tabOption->shape != QTabBar::TriangularNorth)) {
+            return;
+        }
         painter->save();
-        painter->setRenderHint(QPainter::Antialiasing);
-        painter->setPen(Qt::NoPen);
-        painter->setBrush(accent);
-        painter->drawRoundedRect(option->rect.adjusted(1, 1, -1, -1), 3, 3);
+        painter->setPen(QPen(option->palette.midlight().color(), 1));
+        painter->drawLine(option->rect.right(), option->rect.top(), option->rect.right(), option->rect.bottom());
+        if (option->state & State_Selected) {
+            painter->setPen(QPen(option->palette.color(QPalette::Highlight), 2));
+            painter->drawLine(option->rect.left(), option->rect.top(), option->rect.right(), option->rect.top());
+        }
         painter->restore();
         return;
     }

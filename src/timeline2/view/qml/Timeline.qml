@@ -1370,6 +1370,11 @@ function getTrackColor(audio, header) {
             id: tracksArea
             property real clickX
             property real clickY
+            property bool rangePress: false
+            property bool rangeDragging: false
+            property real rangePressX: 0
+            property int rangeStartFrame: -1
+            property int rangeEndFrame: -1
             property point lastGlobalPos
             property point panStartGlobalPos
             property bool isWarping: false
@@ -1410,7 +1415,17 @@ function getTrackColor(audio, header) {
                 focus = true
                 shiftPress = (mouse.modifiers & Qt.ShiftModifier) && (mouse.y > ruler.height) && !(mouse.modifiers & Qt.AltModifier)
                 let selectLikeTool = K.Core.activeTool === K.ToolType.SelectTool || K.Core.activeTool === K.ToolType.RippleTool
-                if (mouse.buttons === Qt.MiddleButton || (selectLikeTool && (mouse.modifiers & Qt.ControlModifier) && !shiftPress)) {
+                if (mouse.buttons === Qt.LeftButton && selectLikeTool && (mouse.modifiers & Qt.ControlModifier)
+                    && !(mouse.modifiers & (Qt.ShiftModifier | Qt.AltModifier))) {
+                    rangePress = true
+                    rangeDragging = false
+                    rangePressX = mouse.x
+                    rangeStartFrame = Math.max(0, Math.min(root.timeline.duration - 1, Math.round((scrollView.contentX + mouse.x) / root.timeScale)))
+                    rangeEndFrame = rangeStartFrame
+                    mouse.accepted = true
+                    return
+                }
+                if (mouse.buttons === Qt.MiddleButton || (selectLikeTool && (mouse.modifiers & Qt.ControlModifier) && (mouse.modifiers & Qt.AltModifier) && !shiftPress)) {
                     clickX = mouseX
                     clickY = mouseY
                     panStartGlobalPos = mapToGlobal(mouse.x, mouse.y)
@@ -1568,7 +1583,17 @@ function getTrackColor(audio, header) {
             }
             onPositionChanged: mouse => {
                 let selectLikeTool = K.Core.activeTool === K.ToolType.SelectTool || K.Core.activeTool === K.ToolType.RippleTool
-                if (pressed && ((mouse.buttons === Qt.MiddleButton) || (mouse.buttons === Qt.LeftButton && selectLikeTool && (mouse.modifiers & Qt.ControlModifier) && !shiftPress))) {
+                if (pressed && rangePress && mouse.buttons === Qt.LeftButton) {
+                    if (Math.abs(mouse.x - rangePressX) >= Application.styleHints.startDragDistance) {
+                        rangeDragging = true
+                    }
+                    if (rangeDragging) {
+                        rangeEndFrame = Math.max(0, Math.min(root.timeline.duration - 1, Math.round((scrollView.contentX + mouse.x) / root.timeScale)))
+                    }
+                    return
+                }
+                if (pressed && ((mouse.buttons === Qt.MiddleButton) || (mouse.buttons === Qt.LeftButton && selectLikeTool && (mouse.modifiers & Qt.ControlModifier)
+                                 && (mouse.modifiers & Qt.AltModifier) && !shiftPress))) {
                     // Pan view
                     if (!isCursorHidden) {
                         root.timeline.hideCursor(true)
@@ -1696,6 +1721,8 @@ function getTrackColor(audio, header) {
                 }
             }
             onCanceled: {
+                rangePress = false
+                rangeDragging = false
                 if (isCursorHidden) {
                     root.timeline.hideCursor(false)
                     isCursorHidden = false
@@ -1703,6 +1730,15 @@ function getTrackColor(audio, header) {
                 }
             }
             onReleased: mouse => {
+                if (rangePress && mouse.button === Qt.LeftButton) {
+                    if (rangeDragging) {
+                        rangeEndFrame = Math.max(0, Math.min(root.timeline.duration - 1, Math.round((scrollView.contentX + mouse.x) / root.timeScale)))
+                        root.timeline.setZoneFromFrameRange(rangeStartFrame, rangeEndFrame)
+                    }
+                    rangePress = false
+                    rangeDragging = false
+                    return
+                }
                 tracksArea.isWarping = false
                 if (tracksArea.isCursorHidden) {
                     root.timeline.hideCursor(false)
@@ -2274,6 +2310,19 @@ function getTrackColor(audio, header) {
                             }
                         }
                         Rectangle {
+                            id: timelineZoneHighlight
+                            readonly property int firstFrame: tracksArea.rangeDragging ? Math.min(tracksArea.rangeStartFrame, tracksArea.rangeEndFrame) : root.timeline.zoneIn
+                            readonly property int outFrame: tracksArea.rangeDragging ? Math.max(tracksArea.rangeStartFrame, tracksArea.rangeEndFrame) + 1 : root.timeline.zoneOut
+                            visible: firstFrame >= 0 && outFrame > firstFrame
+                            x: firstFrame * root.timeScale
+                            y: scrollView.contentY
+                            width: (outFrame - firstFrame) * root.timeScale
+                            height: scrollView.height
+                            color: Qt.rgba(activePalette.highlight.r, activePalette.highlight.g, activePalette.highlight.b, 0.12)
+                            border.color: Qt.rgba(activePalette.highlight.r, activePalette.highlight.g, activePalette.highlight.b, 0.6)
+                            border.width: 1
+                        }
+                        Rectangle {
                             id: rubberSelect
                             // Used to determine if drag start should trigger an event
                             property int originX
@@ -2338,7 +2387,7 @@ function getTrackColor(audio, header) {
                                 anchors.rightMargin: 2
                                 anchors.top: parent.top
                                 font: K.UiUtils.smallestReadableFont
-                                color: '#ffffff'
+                                color: activePalette.text
                                 onRecStateChanged: {
                                     if (recState == 1) {
                                         // Recording
@@ -2441,7 +2490,7 @@ function getTrackColor(audio, header) {
                         leftPadding: 2
                         rightPadding: 2
                         font: K.UiUtils.smallestReadableFont
-                        color: '#ffffff'
+                        color: activePalette.text
                     }
                 }
             }
@@ -2742,4 +2791,3 @@ function getTrackColor(audio, header) {
         }
     }
 }
-

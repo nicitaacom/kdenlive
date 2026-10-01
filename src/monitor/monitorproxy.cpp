@@ -215,7 +215,9 @@ void MonitorProxy::setCursorPosition(int pos)
 void MonitorProxy::positionFromConsumer(int pos, bool playing)
 {
     if (playing) {
+        const int previousPosition = m_position;
         m_position = pos;
+        Q_EMIT playbackPositionChanged(previousPosition, pos);
         Q_EMIT positionChanged(pos);
         if (!m_seekFinished) {
             m_seekFinished = true;

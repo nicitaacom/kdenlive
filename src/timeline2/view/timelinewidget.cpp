@@ -206,6 +206,9 @@ void TimelineWidget::emitMousePos(int offset)
 
 void TimelineWidget::mousePressEvent(QMouseEvent *event)
 {
+    // A click on the timeline must release keyboard focus from dock search
+    // fields so frame navigation targets this timeline again.
+    setFocus(Qt::MouseFocusReason);
     Q_EMIT focusProjectMonitor();
     m_clickPos = event->globalPosition().toPoint();
     QQuickWidget::mousePressEvent(event);

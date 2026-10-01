@@ -646,6 +646,8 @@ public:
      */
     void clearPreviewRange(bool resetZones);
     void startPreviewRender();
+    void startRamPreviewRender(int limitMB);
+    void clearRamPreview();
     void stopPreviewRender();
     bool previewDisabled() const { return m_previewDisabled; }
     QVariantList dirtyChunks() const;
@@ -786,6 +788,8 @@ public Q_SLOTS:
     void resizeMix(int cid, int duration, MixAlignment align, int leftFrames = -1);
     /** @brief change zone info with undo. */
     Q_INVOKABLE void updateZone(const QPoint oldZone, const QPoint newZone, bool withUndo = true);
+    /** @brief Set the timeline zone from two displayed frames (both endpoints included). */
+    Q_INVOKABLE void setZoneFromFrameRange(int firstFrame, int lastFrame);
     Q_INVOKABLE void updateEffectZone(const QPoint oldZone, const QPoint newZone, bool withUndo = true);
     void updateTrimmingMode();
     /** @brief When a clip or composition is moved, inform asset panel to update cursor position in keyframe views. */

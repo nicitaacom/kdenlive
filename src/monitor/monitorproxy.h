@@ -183,6 +183,8 @@ public:
 
 Q_SIGNALS:
     void positionChanged(int);
+    /** @brief Consumer-driven frame advance, excluding explicit monitor seeks. */
+    void playbackPositionChanged(int previousPosition, int position);
     void seekFinishedChanged();
     void requestSeek(int pos, bool noAudioScrub);
     void zoneChanged();

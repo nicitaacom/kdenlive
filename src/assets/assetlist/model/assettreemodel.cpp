@@ -43,9 +43,6 @@ Qt::ItemFlags AssetTreeModel::flags(const QModelIndex &index) const
     if (item->dataColumn(AssetTreeModel::IdCol) == QStringLiteral("root")) {
         return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
     }
-    if (item->dataColumn(AssetTreeModel::TypeCol).value<AssetListType::AssetType>() == AssetListType::AssetType::Pending) {
-        return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
-    }
     return Qt::ItemIsDragEnabled | Qt::ItemIsEnabled | Qt::ItemIsSelectable;
 }
 

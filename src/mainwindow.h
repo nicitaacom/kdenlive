@@ -502,6 +502,9 @@ private Q_SLOTS:
     void slotCreateRangeMarkerFromZone();
     void slotCreateRangeMarkerFromZoneQuick();
     void slotPreviewRender();
+    void slotRamPreviewRender();
+    void slotClearRamPreview();
+    void slotSetRamPreviewLimit();
     void slotStopPreviewRender();
     void slotDefinePreviewRender();
     void slotRemovePreviewRender();

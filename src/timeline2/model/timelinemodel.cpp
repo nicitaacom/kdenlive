@@ -8389,11 +8389,16 @@ bool TimelineModel::hasTimelinePreview() const
 void TimelineModel::updatePreviewConnection(bool enable)
 {
     if (hasTimelinePreview()) {
+        // A hidden preview track is still serialized by MLT. Remove it from
+        // the tractor while saving/exporting so a session-only RAM file can
+        // never become a project or delivery dependency.
+        m_tractor->lock();
         if (enable) {
-            m_timelinePreview->enable();
+            m_timelinePreview->reconnectTrack();
         } else {
-            m_timelinePreview->disable();
+            m_timelinePreview->disconnectTrack();
         }
+        m_tractor->unlock();
     }
 }
 

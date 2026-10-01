@@ -383,6 +383,10 @@
       <label>Default size of video chunks for timeline preview.</label>
       <default>25</default>
     </entry>
+    <entry name="ramPreviewLimitMB" type="Int">
+      <label>Maximum RAM used for the current timeline preview, in MiB.</label>
+      <default>4096</default>
+    </entry>
     <entry name="autopreview" type="Bool">
       <label>Automatically regenerate dirty zones of timeline preview.</label>
       <default>false</default>

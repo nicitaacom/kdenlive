@@ -589,12 +589,26 @@ Item {
     
     MouseArea {
         id: rulerMouseArea
+        property bool rangePress: false
+        property bool rangeDragging: false
+        property real rangePressX: 0
+        property int rangeStartFrame: -1
+        property int rangeEndFrame: -1
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
         z: 1
         onPressed: mouse => {
             if (mouse.buttons === Qt.LeftButton) {
+                if (mouse.modifiers & Qt.ControlModifier) {
+                    rangePress = true
+                    rangeDragging = false
+                    rangePressX = mouse.x
+                    rangeStartFrame = Math.max(0, Math.min(rulerRoot.timeline.duration - 1, Math.round(mouse.x / rulerRoot.timeline.scaleFactor)))
+                    rangeEndFrame = rangeStartFrame
+                    mouse.accepted = true
+                    return
+                }
                 var pos = Math.max(mouseX, 0)
                 var frame = Math.round(pos / rulerRoot.timeline.scaleFactor)
                 if (mouse.modifiers & Qt.AltModifier) {
@@ -606,6 +620,15 @@ Item {
         }
         onPositionChanged: mouse => {
             if (mouse.buttons === Qt.LeftButton && pressed) {
+                if (rangePress) {
+                    if (Math.abs(mouse.x - rangePressX) >= Application.styleHints.startDragDistance) {
+                        rangeDragging = true
+                    }
+                    if (rangeDragging) {
+                        rangeEndFrame = Math.max(0, Math.min(rulerRoot.timeline.duration - 1, Math.round(mouse.x / rulerRoot.timeline.scaleFactor)))
+                    }
+                    return
+                }
                 var pos = Math.max(mouseX, 0)
                 var frame = Math.round(pos / rulerRoot.timeline.scaleFactor)
                 if (mouse.modifiers & Qt.AltModifier) {
@@ -613,6 +636,18 @@ Item {
                 }
                 rulerRoot.monitorProxy.position = frame
             }
+        }
+        onReleased: mouse => {
+            if (rangePress && mouse.button === Qt.LeftButton && rangeDragging) {
+                rangeEndFrame = Math.max(0, Math.min(rulerRoot.timeline.duration - 1, Math.round(mouse.x / rulerRoot.timeline.scaleFactor)))
+                rulerRoot.timeline.setZoneFromFrameRange(rangeStartFrame, rangeEndFrame)
+            }
+            rangePress = false
+            rangeDragging = false
+        }
+        onCanceled: {
+            rangePress = false
+            rangeDragging = false
         }
         onDoubleClicked: mouse => {
             if (mouse.y < rulerRoot.guideLabelHeight) {
@@ -625,6 +660,15 @@ Item {
             } else {
                 wheel.accepted = false
             }
+        }
+        Rectangle {
+            visible: rulerMouseArea.rangeDragging && rulerRoot.timeline.duration > 0
+            x: Math.min(rulerMouseArea.rangeStartFrame, rulerMouseArea.rangeEndFrame) * rulerRoot.timeline.scaleFactor
+            width: (Math.abs(rulerMouseArea.rangeEndFrame - rulerMouseArea.rangeStartFrame) + 1) * rulerRoot.timeline.scaleFactor
+            height: parent.height
+            color: Qt.rgba(activePalette.highlight.r, activePalette.highlight.g, activePalette.highlight.b, 0.3)
+            border.color: activePalette.highlight
+            border.width: 1
         }
     }
     
@@ -677,4 +721,3 @@ Item {
         }
     }
 }
-

@@ -11,6 +11,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QPainter>
 #include <QProxyStyle>
 #include <QStyleFactory>
+#include <QTabBar>
 
 class KdenliveDockTabBar : public KDDockWidgets::QtWidgets::TabBar
 {
@@ -21,6 +22,9 @@ public:
         auto parentWidget = KDDockWidgets::QtCommon::View_qt::asQWidget(parent);
         setProperty("_breeze_force_frame", false);
         setDocumentMode(true);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        setExpanding(false);
+        setStyleSheet(QStringLiteral("QTabBar::tab { border: none; padding: 0 4px; }"));
         parentWidget->setProperty("_breeze_force_frame", false);
         setContextMenuPolicy(Qt::CustomContextMenu);
         // The constructor of KDDockWidgets::QtWidgets::TabBar makes a QProxyStyle
@@ -38,6 +42,26 @@ public:
             }
         });
     }
+
+protected:
+    void paintEvent(QPaintEvent *event) override
+    {
+        KDDockWidgets::QtWidgets::TabBar::paintEvent(event);
+        QPainter painter(this);
+        painter.setPen(QPen(palette().midlight().color(), 1));
+        painter.drawLine(0, 0, width() - 1, 0);
+        const int selectedIndex = currentIndex();
+        for (int index = 0; index < count(); ++index) {
+            const QRect tab = tabRect(index);
+            painter.setPen(QPen(palette().midlight().color(), 1));
+            painter.drawLine(tab.right(), tab.top(), tab.right(), tab.bottom());
+        }
+        if (selectedIndex >= 0) {
+            const QRect selectedTab = tabRect(selectedIndex);
+            painter.setPen(QPen(palette().highlight().color(), 2));
+            painter.drawLine(selectedTab.left(), 0, selectedTab.right(), 0);
+        }
+    }
 };
 
 class KdenliveDockGroup : public KDDockWidgets::QtWidgets::Group
@@ -47,7 +71,20 @@ public:
         : KDDockWidgets::QtWidgets::Group(controller, KDDockWidgets::QtCommon::View_qt::asQWidget(parent))
     {
     }
-    void paintEvent(QPaintEvent *) override {}
+    void paintEvent(QPaintEvent *) override
+    {
+        // KDDockWidgets sizes the tab bar to its contents. Keep the divider
+        // visually full-width by drawing the continuation on the group itself.
+        // The tab bar paints the same rule over its own area, with the active
+        // tab replacing that segment with the accent color.
+        const auto tabBar = findChild<QTabBar *>();
+        if (!tabBar || !tabBar->isVisible()) {
+            return;
+        }
+        QPainter painter(this);
+        painter.setPen(QPen(palette().midlight().color(), 1));
+        painter.drawLine(0, tabBar->geometry().top(), width() - 1, tabBar->geometry().top());
+    }
 };
 
 class KdenliveDockStack : public KDDockWidgets::QtWidgets::Stack

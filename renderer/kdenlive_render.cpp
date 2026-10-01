@@ -70,12 +70,14 @@ int main(int argc, char **argv)
     parser.addHelpOption();
     parser.addVersionOption();
 
-    parser.addPositionalArgument("mode", "Render mode. Either \"delivery\" or \"preview-chunks\".");
+    parser.addPositionalArgument("mode", "Render mode: delivery, preview-chunks, or preview-ram-chunks.");
     parser.parse(QCoreApplication::arguments());
     QStringList args = parser.positionalArguments();
     const QString mode = args.isEmpty() ? QString() : args.first();
 
-    if (mode == "preview-chunks") {
+    if (mode == "preview-chunks" || mode == "preview-ram-chunks") {
+
+        const bool ramChunks = mode == QLatin1String("preview-ram-chunks");
 
         parser.clearPositionalArguments();
         parser.addPositionalArgument("preview-chunks", "Mode: Render split into multiple files for timeline preview.");
@@ -140,11 +142,25 @@ int main(int argc, char **argv)
         int rangeEnd = 0;
         QString frame;
         while (!chunks.isEmpty()) {
-            if (rangeEnd == 0) {
+            int lastFrameOffset = chunkSize;
+            if (ramChunks) {
+                const QString chunk = chunks.takeFirst();
+                const QStringList pair = chunk.split(QLatin1Char(':'));
+                bool startOk = false;
+                bool lengthOk = false;
+                const int start = pair.value(0).toInt(&startOk);
+                const int length = pair.value(1).toInt(&lengthOk);
+                if (pair.size() != 2 || !startOk || !lengthOk || start < 0 || length <= 0) {
+                    fprintf(stderr, "INVALID RAM preview chunk: %s\n", chunk.toUtf8().constData());
+                    return 1;
+                }
+                frame = QString::number(start);
+                lastFrameOffset = length - 1;
+            } else if (rangeEnd == 0) {
                 // We are not processing a range
                 frame = chunks.first();
             }
-            if (rangeEnd > 0) {
+            if (!ramChunks && rangeEnd > 0) {
                 // We are processing a range
                 currentFrame += chunkSize + 1;
                 frame = QString::number(currentFrame);
@@ -155,12 +171,12 @@ int main(int argc, char **argv)
                     // Range is processed, remove from stack
                     chunks.removeFirst();
                 }
-            } else if (frame.contains(QLatin1Char('-'))) {
+            } else if (!ramChunks && frame.contains(QLatin1Char('-'))) {
                 rangeStart = frame.section(QLatin1Char('-'), 0, 0).toInt();
                 rangeEnd = frame.section(QLatin1Char('-'), 1, 1).toInt();
                 currentFrame = rangeStart;
                 frame = QString::number(currentFrame);
-            } else {
+            } else if (!ramChunks) {
                 // Frame will be processed, remove from stack
                 chunks.removeFirst();
             }
@@ -171,7 +187,7 @@ int main(int argc, char **argv)
                 fprintf(stderr, "DONE:%d \n", frame.toInt());
                 continue;
             }
-            QScopedPointer<Mlt::Producer> playlst(prod.cut(frame.toInt(), frame.toInt() + chunkSize));
+            QScopedPointer<Mlt::Producer> playlst(prod.cut(frame.toInt(), frame.toInt() + lastFrameOffset));
             QScopedPointer<Mlt::Consumer> cons(
                 new Mlt::Consumer(profile, QStringLiteral("avformat:%1").arg(baseFolder.absoluteFilePath(fileName)).toUtf8().constData()));
             for (const QString &param : std::as_const(consumerParams)) {

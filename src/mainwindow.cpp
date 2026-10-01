@@ -113,6 +113,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QInputDialog>
 #include <QMenu>
 #include <QMenuBar>
 #include <QProxyStyle>
@@ -882,6 +883,9 @@ void MainWindow::init()
     QAction *prevRender = actionCollection()->action(QStringLiteral("prerender_timeline_zone"));
     QAction *stopPrevRender = actionCollection()->action(QStringLiteral("stop_prerender_timeline"));
     tlMenu->addAction(stopPrevRender);
+    tlMenu->addAction(actionCollection()->action(QStringLiteral("ram_preview_zone")));
+    tlMenu->addAction(actionCollection()->action(QStringLiteral("clear_ram_preview")));
+    tlMenu->addAction(actionCollection()->action(QStringLiteral("set_ram_preview_limit")));
     tlMenu->addAction(actionCollection()->action(QStringLiteral("set_render_timeline_zone")));
     tlMenu->addAction(actionCollection()->action(QStringLiteral("unset_render_timeline_zone")));
     tlMenu->addAction(actionCollection()->action(QStringLiteral("clear_render_timeline_zone")));
@@ -1642,6 +1646,12 @@ void MainWindow::setupActions()
     m_zoomSlider->setPageStep(1);
     m_zoomSlider->setInvertedAppearance(true);
     m_zoomSlider->setInvertedControls(true);
+    m_zoomSlider->setStyleSheet(QStringLiteral(
+        "QSlider::groove:horizontal { height: 4px; background: palette(mid); border: 1px solid palette(light); }"
+        "QSlider::sub-page:horizontal { background: palette(highlight); }"
+        "QSlider::add-page:horizontal { background: palette(base); }"
+        "QSlider::handle:horizontal { width: 12px; margin: -5px 0; border: 1px solid palette(highlight); "
+        "background: palette(button); border-radius: 2px; }"));
 
     m_zoomSlider->setMaximumWidth(150);
     m_zoomSlider->setMinimumWidth(100);
@@ -1951,6 +1961,11 @@ void MainWindow::setupActions()
                                             "Click on the down-arrow icon to get a list of options (for example: add preview render zone, remove all zones)."));
     addAction(QStringLiteral("stop_prerender_timeline"), i18n("Stop Preview Render"), this, SLOT(slotStopPreviewRender()),
               QIcon::fromTheme(QStringLiteral("preview-render-off")));
+    QAction *ramPreview = addAction(QStringLiteral("ram_preview_zone"), i18n("Render Timeline Zone to RAM"), this, SLOT(slotRamPreviewRender()),
+                                    QIcon::fromTheme(QStringLiteral("preview-render-on")), QKeySequence(Qt::CTRL | Qt::Key_B));
+    ramPreview->setWhatsThis(xi18nc("@info:whatsthis", "Render the marked timeline In/Out zone to RAM for smooth playback. Starting another RAM preview releases the previous one."));
+    addAction(QStringLiteral("clear_ram_preview"), i18n("Clear RAM Preview"), this, SLOT(slotClearRamPreview()));
+    addAction(QStringLiteral("set_ram_preview_limit"), i18n("Set RAM Preview Limit…"), this, SLOT(slotSetRamPreviewLimit()));
 
     addAction(QStringLiteral("select_timeline_zone"), i18n("Adjust Timeline Zone to Selection"), this, SLOT(slotSelectTimelineZone()),
               QIcon::fromTheme(QStringLiteral("edit-select")), Qt::SHIFT | Qt::Key_Z);
@@ -3561,6 +3576,30 @@ void MainWindow::slotPreviewRender()
     }
 }
 
+void MainWindow::slotRamPreviewRender()
+{
+    if (pCore->currentDoc()) {
+        getCurrentTimeline()->controller()->startRamPreviewRender(KdenliveSettings::ramPreviewLimitMB());
+    }
+}
+
+void MainWindow::slotClearRamPreview()
+{
+    if (pCore->currentDoc()) {
+        getCurrentTimeline()->controller()->clearRamPreview();
+    }
+}
+
+void MainWindow::slotSetRamPreviewLimit()
+{
+    bool accepted = false;
+    const int current = KdenliveSettings::ramPreviewLimitMB();
+    const int limit = QInputDialog::getInt(this, i18n("RAM Preview Limit"), i18n("Maximum preview cache (MiB):"), current, 16, 32768, 64, &accepted);
+    if (accepted) {
+        KdenliveSettings::setRamPreviewLimitMB(limit);
+    }
+}
+
 void MainWindow::slotStopPreviewRender()
 {
     if (pCore->currentDoc()) {
@@ -3911,11 +3950,11 @@ void MainWindow::showToolMessage()
 #ifdef Q_OS_WIN
         message = xi18nc("@info:whatsthis",
                          "<shortcut>Shift drag</shortcut> for rubber-band selection, <shortcut>Shift click</shortcut> for multiple "
-                         "selection, <shortcut>Meta drag</shortcut> to move a grouped clip to another track, <shortcut>Ctrl drag</shortcut> to pan");
+                         "selection, <shortcut>Meta drag</shortcut> to move a grouped clip to another track, <shortcut>Ctrl drag</shortcut> to mark the timeline zone, <shortcut>Middle drag</shortcut> to pan");
 #else
         message = xi18nc("@info:whatsthis",
                          "<shortcut>Shift drag</shortcut> for rubber-band selection, <shortcut>Shift click</shortcut> for multiple "
-                         "selection, <shortcut>Meta + Alt drag</shortcut> to move a grouped clip to another track, <shortcut>Ctrl drag</shortcut> to pan");
+                         "selection, <shortcut>Meta + Alt drag</shortcut> to move a grouped clip to another track, <shortcut>Ctrl drag</shortcut> to mark the timeline zone, <shortcut>Middle drag</shortcut> to pan");
 #endif
         toolLabel = i18n("Select");
     } else if (m_buttonRazorTool->isChecked()) {
@@ -3934,7 +3973,7 @@ void MainWindow::showToolMessage()
     }*/
     else if (m_buttonRippleTool->isChecked()) {
         message = xi18nc("@info:whatsthis", "<shortcut>Shift drag</shortcut> for rubber-band selection, <shortcut>Shift click</shortcut> for multiple "
-                                            "selection, <shortcut>Alt click</shortcut> to select an item in a group, <shortcut>Ctrl drag</shortcut> to pan");
+                                            "selection, <shortcut>Alt click</shortcut> to select an item in a group, <shortcut>Ctrl drag</shortcut> to mark the timeline zone, <shortcut>Middle drag</shortcut> to pan");
         toolLabel = i18nc("Timeline Tool", "Ripple");
     } /*else if (m_buttonRollTool->isChecked()) { // TODO implement Slide
         toolLabel = i18nc("Timeline Tool", "Roll");

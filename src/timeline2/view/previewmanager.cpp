@@ -18,10 +18,58 @@
 #include <KLocalizedString>
 #include <KMessageBox>
 #include <QCollator>
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QMutexLocker>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <QStorageInfo>
+#include <QTemporaryDir>
+#include <QRegularExpression>
+
+#if defined(Q_OS_LINUX)
+#include <cerrno>
+#include <csignal>
+#include <limits>
+#include <unistd.h>
+#endif
+
+namespace {
+qint64 availablePhysicalMemory()
+{
+#if defined(Q_OS_LINUX)
+    QFile memoryInfo(QStringLiteral("/proc/meminfo"));
+    if (memoryInfo.open(QIODevice::ReadOnly)) {
+        for (const QByteArray &line : memoryInfo.readAll().split('\n')) {
+            if (line.startsWith("MemAvailable:")) {
+                return line.mid(sizeof("MemAvailable:") - 1).trimmed().split(' ').first().toLongLong() * 1024;
+            }
+        }
+    }
+#endif
+    return 0;
+}
+
+void cleanupAbandonedRamPreviews()
+{
+#if defined(Q_OS_LINUX)
+    const QDir sharedMemory(QStringLiteral("/dev/shm"));
+    const QRegularExpression pattern(QStringLiteral("^kdenlive-ram-preview-([0-9]+)-[A-Za-z0-9]+$"));
+    for (const QFileInfo &info : sharedMemory.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks)) {
+        const QRegularExpressionMatch match = pattern.match(info.fileName());
+        if (!match.hasMatch() || info.ownerId() != getuid()) {
+            continue;
+        }
+        bool ok = false;
+        const qint64 pid = match.captured(1).toLongLong(&ok);
+        if (!ok || pid <= 0 || pid > std::numeric_limits<pid_t>::max() || (::kill(pid_t(pid), 0) == 0 || errno != ESRCH)) {
+            continue;
+        }
+        QDir(info.absoluteFilePath()).removeRecursively();
+    }
+#endif
+}
+} // namespace
 
 PreviewManager::PreviewManager(Mlt::Tractor *tractor, QUuid uuid, QObject *parent)
     : QObject(parent)
@@ -53,6 +101,7 @@ PreviewManager::PreviewManager(Mlt::Tractor *tractor, QUuid uuid, QObject *paren
 
 PreviewManager::~PreviewManager()
 {
+    clearRamPreview();
     if (m_initialized) {
         abortRendering();
         if (m_undoDir.dirName() == QLatin1String("undo")) {
@@ -195,6 +244,7 @@ void PreviewManager::loadChunks(QVariantList previewChunks, QVariantList dirtyCh
 
 void PreviewManager::deletePreviewTrack()
 {
+    clearRamPreview();
     m_tractor->lock();
     disconnectTrack();
     delete m_previewTrack;
@@ -324,6 +374,11 @@ bool PreviewManager::loadParams()
 
 void PreviewManager::invalidatePreviews()
 {
+    if (m_ramActive) {
+        clearRamPreview();
+        pCore->currentDoc()->setModified(true);
+        return;
+    }
     QMutexLocker lock(&m_previewMutex);
     bool timer = KdenliveSettings::autopreview();
     if (m_previewTimer.isActive()) {
@@ -447,6 +502,10 @@ void PreviewManager::doCleanupOldPreviews()
 
 void PreviewManager::clearPreviewRange(bool resetZones)
 {
+    if (m_ramActive) {
+        clearRamPreview();
+        return;
+    }
     m_previewGatherTimer.stop();
     abortRendering();
 
@@ -518,6 +577,7 @@ void PreviewManager::clearPreviewRange(bool resetZones)
 
 void PreviewManager::addPreviewRange(const QPoint zone, bool add)
 {
+    clearRamPreview();
     int chunkSize = KdenliveSettings::timelinechunks();
     int startChunk = zone.x() / chunkSize;
     int endChunk = int(rintl(zone.y() / chunkSize));
@@ -618,6 +678,120 @@ bool PreviewManager::hasDefinedRange() const
     return (!m_renderedChunks.isEmpty() || !m_dirtyChunks.isEmpty());
 }
 
+void PreviewManager::clearRamPreview()
+{
+    if (!m_ramActive) {
+        return;
+    }
+    m_previewTimer.stop();
+    m_previewGatherTimer.stop();
+    abortRendering();
+    const QList<int> oldChunks = m_ramChunkLengths.keys();
+    if (m_previewTrack) {
+        m_tractor->lock();
+        m_previewTrack->clear();
+        m_tractor->unlock();
+    }
+    m_renderedChunks.clear();
+    {
+        QMutexLocker lock(&m_dirtyMutex);
+        m_dirtyChunks.clear();
+        m_dirtyChunksToRemove.clear();
+    }
+    // The playlist must release its producers before the temporary files are removed.
+    m_ramActive = false;
+    m_ramDir.reset();
+    m_ramChunkLengths.clear();
+    m_ramLimitBytes = 0;
+    m_ramUsedBytes = 0;
+    m_ramZoneStart = m_ramRequestedEnd = m_ramPlannedEnd = m_ramRenderedEnd = -1;
+    Q_EMIT dirtyChunksChanged();
+    Q_EMIT renderedChunksChanged();
+    for (int frame : oldChunks) {
+        Q_EMIT previewChunkChanged(frame);
+    }
+}
+
+bool PreviewManager::startRamPreviewRender(const QPoint &zone, int limitMB)
+{
+#if !defined(Q_OS_LINUX)
+    Q_UNUSED(zone)
+    Q_UNUSED(limitMB)
+    pCore->displayMessage(i18n("RAM preview currently requires Linux shared memory"), ErrorMessage);
+    return false;
+#else
+    if (!m_previewTrack || zone.x() < 0 || zone.y() <= zone.x() || limitMB <= 0) {
+        pCore->displayMessage(i18n("Set a valid timeline In and Out zone before rendering to RAM"), ErrorMessage);
+        return false;
+    }
+    // Reclaim the previous cache before measuring available memory for its replacement.
+    clearRamPreview();
+    abortRendering();
+    cleanupAbandonedRamPreviews();
+    const QStorageInfo storage(QStringLiteral("/dev/shm"));
+    const qint64 physicalAvailable = availablePhysicalMemory();
+    constexpr qint64 reserve = 1024LL * 1024 * 1024;
+    if (!storage.isValid() || storage.fileSystemType() != QByteArrayLiteral("tmpfs") || physicalAvailable <= reserve) {
+        pCore->displayMessage(i18n("RAM preview needs available shared and system memory"), ErrorMessage);
+        return false;
+    }
+    const qint64 budget = std::min({qint64(limitMB) * 1024 * 1024, std::max(qint64(0), storage.bytesAvailable() - reserve), physicalAvailable - reserve});
+    const qint64 frameBytes = qint64(pCore->getProjectProfile().width()) * pCore->getProjectProfile().height() * 4;
+    constexpr qint64 chunkOverhead = 1024 * 1024;
+    if (frameBytes <= 0 || budget < frameBytes + chunkOverhead) {
+        pCore->displayMessage(i18n("The RAM preview limit is too small for one project frame"), ErrorMessage);
+        return false;
+    }
+
+    // A new Ctrl+B replaces the old preview; keep no references to the old RAM files.
+    m_previewTimer.stop();
+    m_previewGatherTimer.stop();
+    m_tractor->lock();
+    m_previewTrack->clear();
+    m_tractor->unlock();
+    m_renderedChunks.clear();
+    {
+        QMutexLocker lock(&m_dirtyMutex);
+        m_dirtyChunks.clear();
+        m_dirtyChunksToRemove.clear();
+    }
+    m_ramDir = std::make_unique<QTemporaryDir>(QStringLiteral("/dev/shm/kdenlive-ram-preview-%1-XXXXXX").arg(QCoreApplication::applicationPid()));
+    if (!m_ramDir->isValid()) {
+        m_ramDir.reset();
+        pCore->displayMessage(i18n("Cannot create the RAM preview directory"), ErrorMessage);
+        return false;
+    }
+    m_ramActive = true;
+    m_ramZoneStart = zone.x();
+    m_ramRequestedEnd = zone.y();
+    m_ramLimitBytes = budget;
+    m_ramUsedBytes = 0;
+    m_ramRenderedEnd = zone.x();
+    m_ramChunkLengths.clear();
+    qint64 reservedBytes = 0;
+    for (int frame = zone.x(); frame < zone.y();) {
+        const qint64 remaining = budget - reservedBytes - chunkOverhead;
+        const int length = int(std::min({qint64(KdenliveSettings::timelinechunks()), qint64(zone.y() - frame), remaining / frameBytes}));
+        if (length <= 0) {
+            break;
+        }
+        m_ramChunkLengths.insert(frame, length);
+        m_dirtyChunks << frame;
+        reservedBytes += qint64(length) * frameBytes + chunkOverhead;
+        frame += length;
+    }
+    m_ramPlannedEnd = m_ramZoneStart;
+    for (auto it = m_ramChunkLengths.cbegin(); it != m_ramChunkLengths.cend(); ++it) {
+        m_ramPlannedEnd = std::max(m_ramPlannedEnd, it.key() + it.value());
+    }
+    Q_EMIT renderedChunksChanged();
+    Q_EMIT dirtyChunksChanged();
+    pCore->displayMessage(i18n("Rendering timeline frames %1–%2 to RAM (limit %3 MiB)", m_ramZoneStart, m_ramPlannedEnd - 1, limitMB), InformationMessage);
+    startPreviewRender();
+    return true;
+#endif
+}
+
 void PreviewManager::startPreviewRender()
 {
     QMutexLocker lock(&m_previewMutex);
@@ -627,10 +801,11 @@ void PreviewManager::startPreviewRender()
         m_waitingThumbs.clear();
         // clear log
         m_errorLog.clear();
-        const QString sceneList = m_cacheDir.absoluteFilePath(QStringLiteral("preview.mlt"));
+        const QDir renderDir(m_ramActive ? m_ramDir->path() : m_cacheDir.absolutePath());
+        const QString sceneList = renderDir.absoluteFilePath(QStringLiteral("preview.mlt"));
         if (!KdenliveSettings::proxypreview() && pCore->currentDoc()->useProxy()) {
             const QString playlist =
-                pCore->projectItemModel()->sceneList(m_cacheDir.absolutePath(), QString(), pCore->currentDoc()->getTimeline(m_uuid)->tractor(), -1).first;
+                pCore->projectItemModel()->sceneList(renderDir.absolutePath(), QString(), pCore->currentDoc()->getTimeline(m_uuid)->tractor(), -1).first;
             QDomDocument doc;
             doc.setContent(playlist);
             KdenliveDoc::useOriginals(doc);
@@ -638,7 +813,7 @@ void PreviewManager::startPreviewRender()
                 return;
             }
         } else {
-            pCore->currentDoc()->getTimeline(m_uuid)->sceneList(m_cacheDir.absolutePath(), sceneList);
+            pCore->currentDoc()->getTimeline(m_uuid)->sceneList(renderDir.absolutePath(), sceneList);
         }
         m_previewTimer.stop();
         doPreviewRender(sceneList);
@@ -657,8 +832,9 @@ void PreviewManager::receivedStderr()
         } else if (result.startsWith(QLatin1String("DONE:"))) {
             int chunk = result.section(QLatin1String("DONE:"), 1).simplified().toInt();
             m_processedChunks++;
-            QString fileName = QStringLiteral("%1.%2").arg(chunk).arg(m_extension);
-            Q_EMIT previewRender(chunk, m_cacheDir.absoluteFilePath(fileName), 1000 * m_processedChunks / m_chunksToRender);
+            QString fileName = QStringLiteral("%1.%2").arg(chunk).arg(m_ramActive ? QStringLiteral("nut") : m_extension);
+            const QDir renderDir(m_ramActive ? m_ramDir->path() : m_cacheDir.absolutePath());
+            Q_EMIT previewRender(chunk, renderDir.absoluteFilePath(fileName), 1000 * m_processedChunks / m_chunksToRender);
         } else {
             m_errorLog.append(result);
         }
@@ -674,18 +850,25 @@ void PreviewManager::doPreviewRender(const QString &scene)
     QMutexLocker lock(&m_dirtyMutex);
     Q_ASSERT(m_previewProcess.state() == QProcess::NotRunning);
     std::sort(m_dirtyChunks.begin(), m_dirtyChunks.end(), chunkSort);
-    const QStringList dirtyChunks = getCompressedList(m_dirtyChunks);
+    QStringList dirtyChunks;
+    if (m_ramActive) {
+        for (const QVariant &frame : std::as_const(m_dirtyChunks)) {
+            dirtyChunks << QStringLiteral("%1:%2").arg(frame.toInt()).arg(m_ramChunkLengths.value(frame.toInt()));
+        }
+    } else {
+        dirtyChunks = getCompressedList(m_dirtyChunks);
+    }
     m_chunksToRender = m_dirtyChunks.count();
     m_processedChunks = 0;
     int chunkSize = KdenliveSettings::timelinechunks();
-    QStringList args{QStringLiteral("preview-chunks"),
+    QStringList args{m_ramActive ? QStringLiteral("preview-ram-chunks") : QStringLiteral("preview-chunks"),
                      scene,
-                     m_cacheDir.absolutePath(),
+                     m_ramActive ? m_ramDir->path() : m_cacheDir.absolutePath(),
                      dirtyChunks.join(QLatin1Char(',')),
                      QString::number(chunkSize - 1),
                      pCore->getCurrentProfilePath(),
-                     m_extension,
-                     m_consumerParams.join(QLatin1Char(' '))};
+                     m_ramActive ? QStringLiteral("nut") : m_extension,
+                     m_ramActive ? QStringLiteral("f=nut vcodec=rawvideo pix_fmt=bgra an=1 audio_off=1") : m_consumerParams.join(QLatin1Char(' '))};
     pCore->currentDoc()->previewProgress(0);
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     if (!KdenliveSettings::hwDecoding().isEmpty()) {
@@ -700,19 +883,27 @@ void PreviewManager::doPreviewRender(const QString &scene)
 
 void PreviewManager::processEnded(int exitCode, QProcess::ExitStatus status)
 {
-    const QString sceneList = m_cacheDir.absoluteFilePath(QStringLiteral("preview.mlt"));
+    QDir renderDir(m_ramActive ? m_ramDir->path() : m_cacheDir.absolutePath());
+    const QString sceneList = renderDir.absoluteFilePath(QStringLiteral("preview.mlt"));
     QFile::remove(sceneList);
     if (pCore->window() && (status == QProcess::QProcess::CrashExit || exitCode != 0)) {
         Q_EMIT previewRender(0, m_errorLog, -1);
         if (workingPreview >= 0) {
-            const QString fileName = QStringLiteral("%1.%2").arg(workingPreview).arg(m_extension);
-            if (m_cacheDir.exists(fileName)) {
-                m_cacheDir.remove(fileName);
+            const QString fileName = QStringLiteral("%1.%2").arg(workingPreview).arg(m_ramActive ? QStringLiteral("nut") : m_extension);
+            if (renderDir.exists(fileName)) {
+                renderDir.remove(fileName);
             }
         }
     } else {
         // Normal exit and exit code 0: everything okay
         pCore->currentDoc()->previewProgress(1000);
+        if (m_ramActive) {
+            const QString statusText = m_ramRenderedEnd < m_ramRequestedEnd ? i18n("RAM limit reached; cached timeline frames %1–%2 (%3 MiB)", m_ramZoneStart,
+                                                                                 m_ramRenderedEnd - 1, m_ramUsedBytes / (1024 * 1024))
+                                                                           : i18n("RAM preview ready: timeline frames %1–%2 (%3 MiB)", m_ramZoneStart,
+                                                                                  m_ramRenderedEnd - 1, m_ramUsedBytes / (1024 * 1024));
+            pCore->displayMessage(statusText, InformationMessage);
+        }
     }
     workingPreview = -1;
     m_warnOnCrash = true;
@@ -751,6 +942,11 @@ void PreviewManager::slotRemoveInvalidUndo(int ix)
 
 void PreviewManager::invalidatePreview(int startFrame, int endFrame)
 {
+    if (m_ramActive) {
+        clearRamPreview();
+        pCore->displayMessage(i18n("RAM preview cleared after timeline edit; selected zone remains marked"), InformationMessage);
+        return;
+    }
     if (m_previewTrack == nullptr) {
         return;
     }
@@ -877,13 +1073,38 @@ void PreviewManager::gotPreviewRender(int frame, const QString &file, int progre
         }
         return;
     }
+    if (m_ramActive) {
+        const qint64 fileBytes = QFileInfo(file).size();
+        const qint64 frameBytes = qint64(pCore->getProjectProfile().width()) * pCore->getProjectProfile().height() * 4;
+        if (!m_ramChunkLengths.contains(frame) || fileBytes < qint64(m_ramChunkLengths.value(frame)) * frameBytes ||
+            fileBytes > m_ramLimitBytes - m_ramUsedBytes) {
+            QFile::remove(file);
+            abortRendering();
+            pCore->displayMessage(i18n("RAM preview stopped at its memory limit"), ErrorMessage);
+            return;
+        }
+    }
     if (m_previewTrack->is_blank_at(frame)) {
         Mlt::Producer prod(pCore->getProjectProfile(), QStringLiteral("avformat:%1").arg(file).toUtf8().constData());
-        if (prod.is_valid() && prod.get_length() == KdenliveSettings::timelinechunks()) {
+        const int expectedLength = m_ramActive ? m_ramChunkLengths.value(frame) : KdenliveSettings::timelinechunks();
+        const int detectedLength = prod.get_length();
+        // Raw NUT reports the last frame's timestamp as its duration, so MLT
+        // detects N-1 frames (zero for a one-frame chunk). The file-size check
+        // above confirms all BGRA frames were written before fixing the length.
+        const bool lengthMatches = detectedLength == expectedLength || (m_ramActive && detectedLength == expectedLength - 1);
+        if (m_ramActive && lengthMatches) {
+            prod.set("length", expectedLength);
+            prod.set("out", expectedLength - 1);
+        }
+        if (prod.is_valid() && lengthMatches && prod.get_length() == expectedLength) {
             m_dirtyMutex.lock();
             m_dirtyChunks.removeAll(QVariant(frame));
             m_dirtyMutex.unlock();
             m_renderedChunks << frame;
+            if (m_ramActive) {
+                m_ramUsedBytes += QFileInfo(file).size();
+                m_ramRenderedEnd = frame + m_ramChunkLengths.value(frame);
+            }
             prod.set("mlt_service", "avformat-novalidate");
             m_tractor->lock();
             m_previewTrack->insert_at(frame, &prod, 1);
@@ -892,7 +1113,9 @@ void PreviewManager::gotPreviewRender(int frame, const QString &file, int progre
             Q_EMIT renderedChunksChanged();
             Q_EMIT previewChunkChanged(frame);
             pCore->currentDoc()->previewProgress(progress);
-            pCore->currentDoc()->setModified(true);
+            if (!m_ramActive) {
+                pCore->currentDoc()->setModified(true);
+            }
         } else {
             qCDebug(KDENLIVE_LOG) << "* * * INVALID PROD: " << file;
             corruptedChunk(frame, file);
@@ -911,7 +1134,11 @@ void PreviewManager::corruptedChunk(int frame, const QString &fileName)
         Q_EMIT workingPreviewChanged();
     }
     Q_EMIT previewRender(0, m_errorLog, -1);
-    m_cacheDir.remove(fileName);
+    if (m_ramActive) {
+        QFile::remove(fileName);
+    } else {
+        m_cacheDir.remove(fileName);
+    }
     if (!m_dirtyChunks.contains(frame)) {
         QMutexLocker lock(&m_dirtyMutex);
         m_dirtyChunks << frame;
@@ -936,6 +1163,10 @@ void PreviewManager::removeOverlayTrack()
 
 QPair<QStringList, QStringList> PreviewManager::previewChunks()
 {
+    // RAM previews are session-only. Never persist their chunk positions in a project.
+    if (m_ramActive) {
+        return {};
+    }
     QMutexLocker lock(&m_dirtyMutex);
     std::sort(m_renderedChunks.begin(), m_renderedChunks.end(), chunkSort);
     const QStringList renderedChunks = getCompressedList(m_renderedChunks);

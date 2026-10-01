@@ -57,6 +57,7 @@
 #include <QQuickItem>
 #include <QtMath>
 
+#include <algorithm>
 #include <memory>
 
 TimelineController::TimelineController(QObject *parent)
@@ -136,7 +137,9 @@ void TimelineController::setModel(std::shared_ptr<TimelineItemModel> model, bool
     connect(this, &TimelineController::videoTargetChanged, this, &TimelineController::updateVideoTarget);
     connect(this, &TimelineController::audioTargetChanged, this, &TimelineController::updateAudioTarget);
     connect(m_model.get(), &TimelineItemModel::requestMonitorRefresh, [&]() { pCore->refreshProjectMonitorOnce(true); });
-    connect(m_model.get(), &TimelineModel::timelineContentChanged, pCore->monitorManager()->projectMonitor(), &Monitor::updateEmptyPreviewState);
+    if (auto *monitorManager = pCore->monitorManager(); monitorManager && monitorManager->projectMonitor()) {
+        connect(m_model.get(), &TimelineModel::timelineContentChanged, monitorManager->projectMonitor(), &Monitor::updateEmptyPreviewState);
+    }
     connect(m_model.get(), &TimelineModel::audioTargetChanged, this, &TimelineController::updateAudioTarget);
     connect(m_model.get(), &TimelineModel::durationUpdated, this, &TimelineController::checkDuration);
     connect(m_model.get(), &TimelineModel::selectionChanged, this, &TimelineController::selectionChanged);
@@ -2158,6 +2161,20 @@ void TimelineController::updateZone(const QPoint oldZone, const QPoint newZone, 
     pCore->pushUndo(undo_zone, redo_zone, i18n("Set Zone"));
 }
 
+void TimelineController::setZoneFromFrameRange(int firstFrame, int lastFrame)
+{
+    const int lastProjectFrame = duration() - 1;
+    if (lastProjectFrame < 0) {
+        return;
+    }
+    const int first = std::clamp(firstFrame, 0, lastProjectFrame);
+    const int last = std::clamp(lastFrame, 0, lastProjectFrame);
+    const QPoint newZone(std::min(first, last), std::max(first, last) + 1);
+    if (newZone != m_zone) {
+        updateZone(m_zone, newZone, true);
+    }
+}
+
 void TimelineController::updateEffectZone(const QPoint oldZone, const QPoint newZone, bool withUndo)
 {
     Q_UNUSED(oldZone)
@@ -2957,6 +2974,7 @@ void TimelineController::startPreviewRender()
         setPreviewEnabled(true);
     }
     if (m_model->hasTimelinePreview()) {
+        m_model->previewManager()->clearRamPreview();
         if (!m_usePreview) {
             m_model->buildPreviewTrack();
             m_usePreview = true;
@@ -2965,6 +2983,37 @@ void TimelineController::startPreviewRender()
             addPreviewRange(true);
         }
         m_model->previewManager()->startPreviewRender();
+    }
+}
+
+void TimelineController::startRamPreviewRender(int limitMB)
+{
+    // Timeline Out is exclusive; every selected frame is covered exactly once.
+    const QPoint zone(m_zone.x(), std::min(m_zone.y(), duration()));
+    if (zone.x() < 0 || zone.y() <= zone.x()) {
+        pCore->displayMessage(i18n("Set a valid timeline In and Out zone before rendering to RAM"), ErrorMessage);
+        return;
+    }
+    if (!m_model->hasTimelinePreview()) {
+        initializePreview();
+    }
+    if (!m_model->hasTimelinePreview()) {
+        return;
+    }
+    if (m_previewDisabled) {
+        setPreviewEnabled(true);
+    }
+    if (!m_usePreview) {
+        m_model->buildPreviewTrack();
+        m_usePreview = true;
+    }
+    m_model->previewManager()->startRamPreviewRender(zone, limitMB);
+}
+
+void TimelineController::clearRamPreview()
+{
+    if (m_model->hasTimelinePreview()) {
+        m_model->previewManager()->clearRamPreview();
     }
 }
 

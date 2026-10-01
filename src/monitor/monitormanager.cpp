@@ -8,8 +8,10 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "core.h"
 #include "kdenlivesettings.h"
 #include "mainwindow.h"
+#include "monitorproxy.h"
 #include "timeline2/view/timelinewidget.h"
 
+#include <QApplication>
 #include <mlt++/Mlt.h>
 
 #include "klocalizedstring.h"
@@ -57,6 +59,8 @@ void MonitorManager::initMonitors(Monitor *clipMonitor, Monitor *projectMonitor)
     m_projectMonitor = projectMonitor;
     m_monitorsList.append(clipMonitor);
     m_monitorsList.append(projectMonitor);
+    connect(clipMonitor->getControllerProxy(), &MonitorProxy::playbackPositionChanged, this, &MonitorManager::followClipMonitorPlayback);
+    connect(projectMonitor->getControllerProxy(), &MonitorProxy::positionChanged, this, [this](int position) { syncCompactClipPosition(position); });
 }
 
 void MonitorManager::appendMonitor(AbstractMonitor *monitor)
@@ -104,11 +108,11 @@ void MonitorManager::lockMonitor(Kdenlive::MonitorId name, bool lock)
 
 void MonitorManager::focusProjectMonitor()
 {
-    if (!m_projectMonitor->isActive()) {
-        activateMonitor(Kdenlive::ProjectMonitor);
-    } else if (!projectMonitorVisible()) {
-        // Force raise
-        pCore->window()->raiseMonitor(false);
+    // A closed Project Monitor is an intentional single-preview layout.
+    if (projectMonitorVisible() && !m_projectMonitor->isActive()) {
+        activateMonitor(Kdenlive::ProjectMonitor, false);
+    } else if (!projectMonitorVisible() && clipMonitorVisible()) {
+        syncCompactClipPosition(pCore->getMonitorPosition());
     }
 }
 
@@ -121,11 +125,29 @@ void MonitorManager::refreshProjectRange(QPair<int, int> range, bool forceRefres
             m_projectMonitor->refreshMonitorIfActive();
         }
     }
+    if (m_compactTimelinePreview && m_clipMonitor->activeClipId().isEmpty() && m_clipMonitor->position() >= range.first &&
+        m_clipMonitor->position() <= range.second) {
+        // Effect edits may replace the producer used by the timeline. A
+        // refresh of the old Clip Monitor producer can then keep displaying
+        // black even though the sequence exports correctly.
+        auto *timeline = pCore->window()->getCurrentTimeline();
+        if (timeline && timeline->controller() && timeline->model()) {
+            m_clipMonitor->setProducer(timeline->model()->uuid(), timeline->model()->producer(), m_clipMonitor->position());
+            m_clipMonitor->adjustRulerSize(qMax(0, timeline->controller()->duration() - 1));
+        }
+    }
 }
 
 void MonitorManager::refreshProjectMonitor(bool directUpdate, bool slowUpdate)
 {
     m_projectMonitor->refreshMonitor(directUpdate, slowUpdate);
+    if (m_compactTimelinePreview && m_clipMonitor->activeClipId().isEmpty() && !projectMonitorVisible() && clipMonitorVisible()) {
+        auto *timeline = pCore->window()->getCurrentTimeline();
+        if (timeline && timeline->controller() && timeline->model()) {
+            m_clipMonitor->setProducer(timeline->model()->uuid(), timeline->model()->producer(), m_clipMonitor->position());
+            m_clipMonitor->adjustRulerSize(qMax(0, timeline->controller()->duration() - 1));
+        }
+    }
 }
 
 void MonitorManager::refreshClipMonitor(bool directUpdate)
@@ -309,6 +331,14 @@ void MonitorManager::pauseActiveMonitor()
 
 void MonitorManager::slotPlay()
 {
+    if (!projectMonitorVisible() && clipMonitorVisible() && pCore->window() &&
+        (timelineHasFocus() || m_clipMonitor->activeClipId().isEmpty())) {
+        // A reopened project may not have emitted a new timeline seek yet.
+        // Bind the visible Clip Monitor to the timeline before Space starts
+        // playback, so an empty/old source cannot jump back to frame zero.
+        syncCompactClipPosition(pCore->getMonitorPosition());
+        activateMonitor(Kdenlive::ClipMonitor, false, true);
+    }
     if (m_activeMonitor) {
         m_activeMonitor->slotPlay();
     }
@@ -367,9 +397,15 @@ void MonitorManager::slotRewindOneFrame()
         pCore->window()->getCurrentTimeline()->model()->requestSlipSelection(-1, true);
     } else if (isTrimming()) {
         return;
+    } else if (timelineHasFocus()) {
+        const int position = qMax(0, pCore->getMonitorPosition() - 1);
+        setTimelineCursorPosition(position);
+        syncCompactClipPosition(position);
     } else {
         if (m_activeMonitor == m_clipMonitor) {
+            const int previous = m_clipMonitor->position();
             m_clipMonitor->slotRewindOneFrame();
+            syncCompactTimelinePosition(previous);
         } else if (m_activeMonitor == m_projectMonitor) {
             m_projectMonitor->slotRewindOneFrame();
         }
@@ -383,12 +419,36 @@ void MonitorManager::slotForwardOneFrame()
         pCore->window()->getCurrentTimeline()->model()->requestSlipSelection(1, true);
     } else if (isTrimming()) {
         return;
+    } else if (timelineHasFocus()) {
+        auto *timeline = pCore->window()->getCurrentTimeline();
+        const int lastFrame = qMax(0, timeline->controller()->duration() - 1);
+        const int position = qMin(lastFrame, pCore->getMonitorPosition() + 1);
+        setTimelineCursorPosition(position);
+        syncCompactClipPosition(position);
     } else {
         if (m_activeMonitor == m_clipMonitor) {
+            const int previous = m_clipMonitor->position();
             m_clipMonitor->slotForwardOneFrame();
+            syncCompactTimelinePosition(previous);
         } else if (m_activeMonitor == m_projectMonitor) {
             m_projectMonitor->slotForwardOneFrame();
         }
+    }
+}
+
+bool MonitorManager::timelineHasFocus() const
+{
+    const QWidget *focused = QApplication::focusWidget();
+    const TimelineWidget *timeline = pCore->window()->getCurrentTimeline();
+    return focused && timeline && (focused == timeline || timeline->isAncestorOf(focused));
+}
+
+void MonitorManager::setTimelineCursorPosition(int position)
+{
+    if (!projectMonitorVisible() && clipMonitorVisible()) {
+        m_projectMonitor->getControllerProxy()->setCursorPosition(position);
+    } else {
+        pCore->window()->getCurrentTimeline()->controller()->setPosition(position);
     }
 }
 
@@ -401,7 +461,9 @@ void MonitorManager::slotRewindOneSecond()
         return;
     } else {
         if (m_activeMonitor == m_clipMonitor) {
+            const int previous = m_clipMonitor->position();
             m_clipMonitor->slotRewindOneFrame(qRound(pCore->getCurrentFps()));
+            syncCompactTimelinePosition(previous);
         } else if (m_activeMonitor == m_projectMonitor) {
             m_projectMonitor->slotRewindOneFrame(qRound(pCore->getCurrentFps()));
         }
@@ -417,11 +479,77 @@ void MonitorManager::slotForwardOneSecond()
         return;
     } else {
         if (m_activeMonitor == m_clipMonitor) {
+            const int previous = m_clipMonitor->position();
             m_clipMonitor->slotForwardOneFrame(qRound(pCore->getCurrentFps()));
+            syncCompactTimelinePosition(previous);
         } else if (m_activeMonitor == m_projectMonitor) {
             m_projectMonitor->slotForwardOneFrame(qRound(pCore->getCurrentFps()));
         }
     }
+}
+
+void MonitorManager::syncCompactTimelinePosition(int previousClipPosition)
+{
+    if (!m_clipMonitor || projectMonitorVisible() || !clipMonitorVisible() || m_activeMonitor != m_clipMonitor || !pCore->window()) {
+        return;
+    }
+    auto *timeline = pCore->window()->getCurrentTimeline();
+    if (!timeline || !timeline->controller() || timeline->controller()->duration() <= 0) {
+        return;
+    }
+    const int lastFrame = timeline->controller()->duration() - 1;
+    const int delta = m_clipMonitor->position() - previousClipPosition;
+    if (delta != 0) {
+        setTimelineCursorPosition(qBound(0, pCore->getMonitorPosition() + delta, lastFrame));
+    }
+}
+
+void MonitorManager::followClipMonitorPlayback(int previousSourcePosition, int sourcePosition)
+{
+    if (!m_clipMonitor || !m_compactTimelinePreview || !m_clipMonitor->activeClipId().isEmpty() || !m_clipMonitor->isPlaying() ||
+        projectMonitorVisible() || !clipMonitorVisible() || !pCore->window()) {
+        return;
+    }
+    auto *timeline = pCore->window()->getCurrentTimeline();
+    if (!timeline || !timeline->controller() || timeline->controller()->duration() <= 0) {
+        return;
+    }
+    const int delta = sourcePosition - previousSourcePosition;
+    if (delta != 0) {
+        const int lastFrame = timeline->controller()->duration() - 1;
+        setTimelineCursorPosition(qBound(0, pCore->getMonitorPosition() + delta, lastFrame));
+    }
+}
+
+void MonitorManager::syncCompactClipPosition(int timelinePosition, bool forceProducerRebind)
+{
+    if (!m_clipMonitor || projectMonitorVisible() || !clipMonitorVisible() || !pCore->window()) {
+        return;
+    }
+    auto *timeline = pCore->window()->getCurrentTimeline();
+    if (!timeline || !timeline->controller() || !timeline->model()) {
+        return;
+    }
+    const auto model = timeline->model();
+    if (!model->producer()) {
+        return;
+    }
+    const QUuid uuid = model->uuid();
+    if (forceProducerRebind || !m_compactTimelinePreview || m_compactTimelineUuid != uuid || !m_clipMonitor->activeClipId().isEmpty()) {
+        // A bin selection can still open its source in the Clip Monitor. A
+        // timeline seek switches the same visible dock back to the processed
+        // sequence, including all timeline effects and compositions.
+        m_clipMonitor->slotOpenClip(nullptr);
+        m_clipMonitor->setProducer(uuid, model->producer(), timelinePosition);
+        m_compactTimelinePreview = true;
+        m_compactTimelineUuid = uuid;
+    } else if (m_clipMonitor->position() != timelinePosition) {
+        m_clipMonitor->requestSeek(timelinePosition);
+    }
+    // The Clip Monitor normally receives this bound from a bin clip. Its
+    // timeline producer has no bin controller, leaving the old bound at zero.
+    // Space would then treat every timeline frame as the end and jump to 0.
+    m_clipMonitor->adjustRulerSize(qMax(0, timeline->controller()->duration() - 1));
 }
 
 void MonitorManager::slotStartMultiTrackMode()

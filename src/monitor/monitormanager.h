@@ -95,6 +95,8 @@ public Q_SLOTS:
     /** @brief Refresh project monitor if the timeline cursor is inside the range. */
     void refreshProjectRange(QPair<int, int> range, bool forceRefresh = false);
     void refreshClipMonitor(bool directUpdate = false);
+    /** @brief Display the processed timeline in the one visible Clip Monitor. */
+    void syncCompactClipPosition(int timelinePosition, bool forceProducerRebind = false);
 
     /** @brief Switch current monitor to fullscreen. */
     void slotSwitchFullscreen();
@@ -118,10 +120,10 @@ public Q_SLOTS:
     void slotPerformMultiTrackMode();
     /** @brief Indicates the monitor needs a refresh on next activation */
     void markMonitorDirty(Kdenlive::MonitorId name, const QUuid uuid);
-
-private Q_SLOTS:
     /** @brief Refresh the visible monitor after a timeline effect changes its producer. */
     void refreshTimelineAfterEffect(int timelinePosition);
+
+private Q_SLOTS:
     /** @brief Set MLT's consumer deinterlace method */
     void slotSetDeinterlacer(int ix);
     /** @brief Set MLT's consumer interpolation method */
@@ -145,10 +147,20 @@ private:
     /** @brief Make sure 2 monitors cannot be activated simultaneously*/
     QMutex m_refreshMutex;
     QMutex m_switchMutex;
+    /** @brief Timeline navigation targets the project playhead even when the clip monitor is active. */
+    bool timelineHasFocus() const;
+    /** @brief Move the timeline cursor without activating a deliberately closed Project Monitor. */
+    void setTimelineCursorPosition(int position);
     /** @brief Sets up all the actions and attaches them to the collection of MainWindow. */
     void setupActions();
+    /** @brief Keep the timeline playhead in sync with compact clip-monitor frame steps. */
+    void syncCompactTimelinePosition(int previousClipPosition);
+    /** @brief Follow Clip Monitor playback in a single-monitor layout. */
+    void followClipMonitorPlayback(int previousSourcePosition, int sourcePosition);
     Monitor *m_clipMonitor{nullptr};
     Monitor *m_projectMonitor{nullptr};
+    bool m_compactTimelinePreview{false};
+    QUuid m_compactTimelineUuid;
     AbstractMonitor *m_activeMonitor{nullptr};
     QList<AbstractMonitor *> m_monitorsList;
     KDualAction *m_muteAction;

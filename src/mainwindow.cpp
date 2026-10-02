@@ -42,6 +42,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QDBusConnectionInterface>
 #include <QDBusInterface>
 #endif
+#include <QToolBar>
+#include <QSet>
 
 // #include "kdenlive_debug.h"
 // #include "kdenlivecore_export.h"
@@ -73,6 +75,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "transitions/transitionlist/view/transitionlistwidget.hpp"
 #include "transitions/transitionsrepository.hpp"
 #include "widgets/progressbutton.h"
+#include "utils/colorcontrast.h"
 #include <config-kdenlive.h>
 
 #ifdef USE_JOGSHUTTLE
@@ -131,6 +134,16 @@ namespace Mlt {
 class Producer;
 }
 
+namespace {
+void ensureApplicationTextContrast(QApplication *application)
+{
+    QPalette palette = application->palette();
+    if (ColorContrast::ensurePaletteTextContrast(palette)) {
+        application->setPalette(palette);
+    }
+}
+}
+
 QMap<QString, QImage> MainWindow::m_lumacache;
 QMap<QString, QStringList> MainWindow::m_lumaFiles;
 KIO::filesize_t m_totalCacheSize = 0;
@@ -179,6 +192,14 @@ void MainWindow::init()
     auto themeManager = KColorSchemeManager::instance();
     KActionMenu *colorSelectionMenu = KColorSchemeMenu::createMenu(themeManager, this);
     actionCollection()->addAction(QStringLiteral("themes_menu"), colorSelectionMenu);
+    ensureApplicationTextContrast(qApp);
+    for (QAction *schemeAction : colorSelectionMenu->menu()->actions()) {
+        connect(schemeAction, &QAction::triggered, this, [] {
+            // The theme action updates QApplication's palette synchronously;
+            // repair all text roles after that palette change.
+            QTimer::singleShot(0, qApp, [] { ensureApplicationTextContrast(qApp); });
+        });
+    }
 
     // Handle communication with the renderer app
     new RenderServer(this);
@@ -219,6 +240,7 @@ void MainWindow::init()
     KConfigGroup tbGroup(&mainConfig, QStringLiteral("Toolbar timelineToolBar"));
     m_timelineToolBar->applySettings(tbGroup);
     QFrame *fr = new QFrame(this);
+    m_timelineToolBarSeparator = fr;
     fr->setFrameShape(QFrame::HLine);
     fr->setMaximumHeight(1);
     fr->setLineWidth(1);
@@ -669,6 +691,7 @@ void MainWindow::init()
 
     // Since not all widgets are added yet, don't use the Save flag now
     setupGUI(KXmlGuiWindow::ToolBar | KXmlGuiWindow::StatusBar | KXmlGuiWindow::Create);
+    applyPreviewFocusedChrome();
     // A user's saved kxmlgui configuration can predate newly added actions and
     // omit them from the menu even though the action exists in our UI resource.
     // Keep the density chooser reachable across upgrades in that case.
@@ -1008,6 +1031,7 @@ void MainWindow::finishUiSetup()
     pCore->restoreLayout();
     Q_EMIT pCore->closeSplash();
     setAutoSaveSettings();
+    applyPreviewFocusedChrome();
     QObject::disconnect(pCore.get(), &Core::GUISetupDone, this, nullptr);
     // This should connect only after splash is done
     connect(pCore.get(), &Core::loadingMessageNewStage, this, [&](const QString &message, int max = -1) {
@@ -1217,6 +1241,81 @@ void MainWindow::saveProperties(KConfigGroup &config)
     }
 }
 
+void MainWindow::applyPreviewFocusedChrome()
+{
+    // Hide the main toolbar: Open remains in File (Ctrl+O), undo/redo remain in Edit
+    // (Ctrl+Z/Ctrl+Y), and the other commands remain available from the menus.
+    QSet<QToolBar *> chromeToolbars;
+    if (QToolBar *mainToolbar = toolBar()) {
+        chromeToolbars.insert(mainToolbar);
+    }
+    for (QToolBar *toolbar : findChildren<QToolBar *>()) {
+        if (toolbar->objectName() == QLatin1String("mainToolBar") || toolbar->objectName() == QLatin1String("extraToolBar")) {
+            chromeToolbars.insert(toolbar);
+        }
+    }
+    if (m_timelineToolBar) {
+        chromeToolbars.insert(m_timelineToolBar);
+    }
+    for (QToolBar *toolbar : std::as_const(chromeToolbars)) {
+        if (!toolbar->property("previewFocusedHidden").toBool()) {
+            toolbar->setProperty("previewFocusedHidden", true);
+            connect(toolbar, &QToolBar::visibilityChanged, this, [toolbar](bool visible) {
+                if (visible) {
+                    toolbar->hide();
+                }
+            });
+        }
+        toolbar->hide();
+    }
+
+    // Keep shared actions available in menus and shortcuts while removing their
+    // redundant buttons from any remaining toolbars.
+    const QStringList hiddenActionNames = {
+        QStringLiteral("edit_copy"),
+        QStringLiteral("edit_paste"),
+        QStringLiteral("project_render_button"),
+        QStringLiteral("mix_clip"),
+        QStringLiteral("timeline_preview_button"),
+        QStringLiteral("audiomixer_button"),
+    };
+    QSet<QAction *> hiddenActions;
+    for (const QString &name : hiddenActionNames) {
+        if (QAction *action = actionCollection()->action(name)) {
+            hiddenActions.insert(action);
+        }
+    }
+
+    for (QToolBar *toolbar : findChildren<QToolBar *>()) {
+        const QList<QAction *> actions = toolbar->actions();
+        QSet<QAction *> removeFromToolbar;
+        for (int i = 0; i < actions.size(); ++i) {
+            if (!hiddenActions.contains(actions.at(i))) {
+                continue;
+            }
+            removeFromToolbar.insert(actions.at(i));
+            if (i > 0 && actions.at(i - 1)->isSeparator()) {
+                removeFromToolbar.insert(actions.at(i - 1));
+            }
+            if (i + 1 < actions.size() && actions.at(i + 1)->isSeparator()) {
+                removeFromToolbar.insert(actions.at(i + 1));
+            }
+        }
+        for (QAction *action : removeFromToolbar) {
+            toolbar->removeAction(action);
+        }
+    }
+
+    // The timeline tools continue to work through the timeline menus and
+    // shortcuts. Hiding this strip gives the monitor more vertical space.
+    if (m_timelineToolBar) {
+        m_timelineToolBar->hide();
+    }
+    if (m_timelineToolBarSeparator) {
+        m_timelineToolBarSeparator->hide();
+    }
+}
+
 void MainWindow::saveNewToolbarConfig()
 {
     // Sync current changes
@@ -1229,6 +1328,7 @@ void MainWindow::saveNewToolbarConfig()
     for (auto &bin : m_binWidgets) {
         bin->setupGeneratorMenu();
     }
+    applyPreviewFocusedChrome();
 
     // hack to be able to insert the hamburger menu at the first position
     QAction *const firstChild = toolBar()->actionAt(toolBar()->height() / 2, toolBar()->height() / 2);
@@ -5798,10 +5898,17 @@ TimelineWidget *MainWindow::openTimeline(const QUuid &uuid, int ix, const QStrin
     TimelineWidget *timeline = m_timelineTabs->addTimeline(uuid, ix, tabName, timelineModel, pCore->monitorManager()->projectMonitor()->getControllerProxy(),
                                                            openInMonitor, previewEnabled);
     slotSetZoom(project->zoom(uuid).x(), false);
-    if (openInMonitor) {
-        m_projectMonitor->slotLoadClipZone(project->zone(uuid));
+    QPoint timelineZone = project->zone(uuid);
+    if (timelineZone == QPoint(0, 75)) {
+        // Older projects stored this factory default as though the user had
+        // marked a zone. Migrate that exact default to an unselected range.
+        timelineZone = QPoint(-1, -1);
+        project->setZone(uuid, timelineZone.x(), timelineZone.y());
     }
-    getTimeline(uuid)->controller()->setZone(project->zone(uuid), false);
+    if (openInMonitor) {
+        m_projectMonitor->slotLoadClipZone(timelineZone);
+    }
+    getTimeline(uuid)->controller()->setZone(timelineZone, false);
     getTimeline(uuid)->controller()->setScrollPos(project->getSequenceProperty(uuid, QStringLiteral("scrollPos")).toInt());
     return timeline;
 }

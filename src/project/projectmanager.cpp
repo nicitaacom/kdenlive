@@ -2046,8 +2046,10 @@ void ProjectManager::initSequenceProperties(const QUuid &uuid, std::pair<int, in
     m_project->setSequenceProperty(uuid, QStringLiteral("documentuuid"), m_project->uuid().toString());
     m_project->setSequenceProperty(uuid, QStringLiteral("zoom"), 8);
     m_project->setSequenceProperty(uuid, QStringLiteral("verticalzoom"), 1);
-    m_project->setSequenceProperty(uuid, QStringLiteral("zonein"), 0);
-    m_project->setSequenceProperty(uuid, QStringLiteral("zoneout"), 75);
+    // Keep a new timeline unzoned. In particular, don't make the first 75
+    // frames look like a preselected RAM-preview range before the user marks it.
+    m_project->setSequenceProperty(uuid, QStringLiteral("zonein"), -1);
+    m_project->setSequenceProperty(uuid, QStringLiteral("zoneout"), -1);
     m_project->setSequenceProperty(uuid, QStringLiteral("tracks"), tracks.first + tracks.second);
     m_project->setSequenceProperty(uuid, QStringLiteral("hasAudio"), tracks.first > 0 ? 1 : 0);
     m_project->setSequenceProperty(uuid, QStringLiteral("hasVideo"), tracks.second > 0 ? 1 : 0);

@@ -1323,6 +1323,9 @@ void Monitor::slotSwitchFullScreen(bool minimizeOnly)
         if (KdenliveSettings::mirrorMonitorOnFullscreen() && multipleScreen) {
             createFullscreenMirror();
         } else {
+            if (m_id == Kdenlive::ClipMonitor) {
+                setFullscreenVideoOnly(true);
+            }
             m_glWidget->setParent(nullptr);
             m_glWidget->move(screen->geometry().topLeft());
             m_glWidget->resize(screen->geometry().size());
@@ -1346,9 +1349,36 @@ void Monitor::slotSwitchFullScreen(bool minimizeOnly)
             KdenliveSettings::setProject_monitor_fullscreen(QString());
         } else {
             KdenliveSettings::setClip_monitor_fullscreen(QString());
+            setFullscreenVideoOnly(false);
         }
         setFocus();
     }
+}
+
+void Monitor::setFullscreenVideoOnly(bool enabled)
+{
+    if (m_id != Kdenlive::ClipMonitor || !m_glMonitor || m_fullscreenVideoOnly == enabled) {
+        return;
+    }
+
+    if (enabled) {
+        m_fullscreenVideoOnly = true;
+        m_fullscreenRulerWasVisible = m_glMonitor->getControllerProxy()->rulerHeight() > 0;
+        if (QQuickItem *root = m_glMonitor->rootObject()) {
+            m_fullscreenRootWasVisible = root->isVisible();
+            // VideoWidget renders the picture underneath this QML overlay. Hide
+            // the overlay tree so the fullscreen view contains only source video.
+            root->setVisible(false);
+        }
+        m_glMonitor->switchRuler(false);
+        return;
+    }
+
+    m_fullscreenVideoOnly = false;
+    if (QQuickItem *root = m_glMonitor->rootObject()) {
+        root->setVisible(m_fullscreenRootWasVisible);
+    }
+    m_glMonitor->switchRuler(m_fullscreenRulerWasVisible);
 }
 
 void Monitor::fixFocus()

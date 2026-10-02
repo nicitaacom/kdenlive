@@ -215,6 +215,7 @@ protected:
 
 private:
     const QScreen *getScreenForFullscreen(bool *multipleScreens);
+    void setFullscreenVideoOnly(bool enabled);
 
     // Fullscreen mirror helpers
     void createFullscreenMirror();
@@ -272,6 +273,9 @@ private:
     QMap<QAction *, QMenu *> m_compactWidgetMenus;
     QMenu *m_positionMenu{nullptr};
     QToolBar *m_trimmingbar;
+    bool m_fullscreenVideoOnly{false};
+    bool m_fullscreenRootWasVisible{true};
+    bool m_fullscreenRulerWasVisible{false};
     QAction *m_oneLess;
     QAction *m_oneMore;
     QAction *m_fiveLess;

@@ -103,7 +103,9 @@ VideoWidget::VideoWidget(int id, QObject *parent)
     } else if (!(KdenliveSettings::displayProjectMonitorInfo() & Monitor::InfoOverlay)) {
         m_rulerHeight = 0;
     }
-    m_displayRulerHeight = m_rulerHeight;
+    // The ruler has no content until a producer is loaded. Avoid reserving an
+    // empty band below the preview while the monitor is empty.
+    m_displayRulerHeight = 0;
     if (!initGPUAccel()) {
         m_glslManager.reset();
     }
@@ -354,8 +356,17 @@ void VideoWidget::refreshRect()
 
 void VideoWidget::updateRulerHeight(int addedHeight)
 {
-    m_displayRulerHeight =
-        m_rulerHeight > 0 ? int(QFontInfo(QFontDatabase::systemFont(QFontDatabase::SmallestReadableFont)).pixelSize() * 1.5) + addedHeight : 0;
+    m_addedRulerHeight = addedHeight;
+    updateDisplayRulerHeight();
+}
+
+void VideoWidget::updateDisplayRulerHeight()
+{
+    const int displayHeight = m_maxProducerPosition > 0 && m_rulerHeight > 0 ? m_rulerHeight + m_addedRulerHeight : 0;
+    if (m_displayRulerHeight == displayHeight) {
+        return;
+    }
+    m_displayRulerHeight = displayHeight;
     resizeVideo(width(), height());
 }
 
@@ -1332,7 +1343,18 @@ int VideoWidget::getCurrentPos() const
 void VideoWidget::setRulerInfo(int duration)
 {
     m_maxProducerPosition = duration;
-    rootObject()->setProperty("duration", duration);
+    if (rootObject()) {
+        rootObject()->setProperty("duration", duration);
+    }
+    updateDisplayRulerHeight();
+    Q_EMIT m_proxy->rulerHeightChanged();
+}
+
+int VideoWidget::rulerHeight() const
+{
+    // Keep the monitor's lower ruler band collapsed when there is no source
+    // duration; the preference itself remains in m_rulerHeight for next load.
+    return m_maxProducerPosition > 0 ? m_rulerHeight : 0;
 }
 
 void VideoWidget::switchRecordState(bool on)
@@ -1485,7 +1507,6 @@ bool VideoWidget::updateScaling()
 void VideoWidget::switchRuler(bool show)
 {
     m_rulerHeight = show ? int(QFontInfo(QFontDatabase::systemFont(QFontDatabase::SmallestReadableFont)).pixelSize() * 1.5) : 0;
-    m_displayRulerHeight = m_rulerHeight;
-    resizeVideo(width(), height());
+    updateDisplayRulerHeight();
     Q_EMIT m_proxy->rulerHeightChanged();
 }

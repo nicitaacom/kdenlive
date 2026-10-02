@@ -80,7 +80,7 @@ void MonitorProxy::resetPosition()
 
 int MonitorProxy::rulerHeight() const
 {
-    return q->m_rulerHeight;
+    return q->rulerHeight();
 }
 
 void MonitorProxy::setRulerHeight(int addedHeight)

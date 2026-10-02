@@ -1265,7 +1265,7 @@
 
     <entry name="showtitlebars" type="Bool">
       <label>Show dock widget titlebars to allow un/docking.</label>
-      <default>true</default>
+      <default>false</default>
     </entry>
 
     <entry name="colorclipcolor" type="Color">

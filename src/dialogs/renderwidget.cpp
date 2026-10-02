@@ -21,13 +21,13 @@
 #include "profiles/profilerepository.hpp"
 #include "project/projectmanager.h"
 #include "render/renderrequest.h"
+#include "utils/colorcontrast.h"
 #include "utils/timecode.h"
 #include "xml/xml.hpp"
 
 #include "renderpresets/renderpresetmodel.hpp"
 #include "renderpresets/renderpresetrepository.hpp"
 
-#include <KColorScheme>
 #include <KGuiItem>
 #include <KIO/DesktopExecParser>
 #include <KIO/JobUiDelegateFactory>
@@ -152,6 +152,9 @@ void RenderViewDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
         QStyle *style = opt.widget ? opt.widget->style() : QApplication::style();
         const int textMargin = style->pixelMetric(QStyle::PM_FocusFrameHMargin) + 1;
         style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, opt.widget);
+        const bool selected = (option.state & QStyle::State_Selected) != 0;
+        const QColor selectedTextColor = ColorContrast::readableTextColor(option.palette.highlight().color(), option.palette.highlightedText().color());
+        painter->setPen(selected ? selectedTextColor : option.palette.text().color());
 
         QFont font = painter->font();
         font.setBold(true);
@@ -174,9 +177,11 @@ void RenderViewDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
         if (progress > 0 && progress < 100) {
             // draw progress bar
             QColor color = option.palette.alternateBase().color();
-            QColor fgColor = option.palette.text().color();
+            QColor fgColor = selected ? selectedTextColor : option.palette.text().color();
             color.setAlpha(150);
-            fgColor.setAlpha(150);
+            if (!selected) {
+                fgColor.setAlpha(150);
+            }
             painter->setBrush(QBrush(color));
             painter->setPen(QPen(fgColor));
             int width = qMin(200, r1.width() - 4);
@@ -196,8 +201,8 @@ void RenderViewDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
             ft.setUnderline(true);
             painter->setFont(ft);
             QPalette pal = QApplication::palette();
-            if ((option.state & static_cast<int>(QStyle::State_Selected)) != 0) {
-                painter->setPen(option.palette.highlightedText().color());
+            if (selected) {
+                painter->setPen(selectedTextColor);
             } else {
                 painter->setPen(pal.link().color());
             }
@@ -215,8 +220,8 @@ void RenderViewDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
             ft.setUnderline(true);
             painter->setFont(ft);
             QPalette pal = QApplication::palette();
-            if ((option.state & static_cast<int>(QStyle::State_Selected)) != 0) {
-                painter->setPen(option.palette.highlightedText().color());
+            if (selected) {
+                painter->setPen(selectedTextColor);
             } else {
                 painter->setPen(pal.link().color());
             }

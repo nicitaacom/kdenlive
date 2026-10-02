@@ -242,6 +242,8 @@ protected:
 private:
     /** @brief Sets up all the actions and attaches them to the collection. */
     void setupActions();
+    /** @brief Keep the preview-focused workspace free of redundant toolbar controls. */
+    void applyPreviewFocusedChrome();
     /** @brief Rebuild the dock menu according to existing dock widgets. */
     void updateDockMenu();
     /** @brief Update the audio thumbnails action icon based on current zoom and toggle state */
@@ -344,6 +346,7 @@ private:
     KIconLoader *m_iconLoader;
     KToolBar *m_timelineToolBar;
     TimelineContainer *m_timelineToolBarContainer;
+    QWidget *m_timelineToolBarSeparator{nullptr};
     QLabel *m_trimLabel;
     QActionGroup *m_scaleGroup;
     ToolType::ProjectTool m_activeTool;

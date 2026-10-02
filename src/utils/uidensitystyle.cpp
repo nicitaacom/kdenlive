@@ -5,6 +5,8 @@
 
 #include "uidensitystyle.h"
 
+#include "colorcontrast.h"
+
 #include <QApplication>
 #include <QLayout>
 #include <QPainter>
@@ -93,8 +95,16 @@ void UiDensityStyle::drawControl(ControlElement element, const QStyleOption *opt
     if (element == CE_TabBarTabLabel && option && (option->state & State_Selected)) {
         auto *tabOption = static_cast<const QStyleOptionTab *>(option);
         QStyleOptionTab adjusted(*tabOption);
-        adjusted.palette.setColor(QPalette::WindowText, adjusted.palette.color(QPalette::HighlightedText));
-        adjusted.palette.setColor(QPalette::ButtonText, adjusted.palette.color(QPalette::HighlightedText));
+        // Selected tabs use HighlightedText in the base style. That role may
+        // be intended for a bright selection fill, while Kdenlive's tab style
+        // keeps the tab surface dark and only draws a colored accent. Resolve
+        // the text against the actual tab surface instead of blindly reusing
+        // HighlightedText (which can become black on black in custom themes).
+        const QColor tabBackground = adjusted.palette.color(QPalette::Window);
+        const QColor tabText = ColorContrast::readableTextColor(tabBackground, adjusted.palette.color(QPalette::WindowText));
+        adjusted.palette.setColor(QPalette::WindowText, tabText);
+        adjusted.palette.setColor(QPalette::ButtonText, tabText);
+        adjusted.palette.setColor(QPalette::HighlightedText, tabText);
         QProxyStyle::drawControl(element, &adjusted, painter, widget);
         return;
     }

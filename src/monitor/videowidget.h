@@ -197,6 +197,7 @@ protected:
     int m_rulerHeight;
     /** @brief The height of the qml ruler and audio thumbs */
     int m_displayRulerHeight;
+    int m_addedRulerHeight{0};
     int m_maxTextureSize;
     /** @brief For some reason on Qt6 fullscreen switch, image position is not correctly updated, so use this to track state */
     bool refreshZoom{false};
@@ -245,6 +246,7 @@ private:
     std::unique_ptr<RenderThread> m_renderThread;
     std::shared_ptr<Mlt::Producer> m_blackClip;
     bool m_blackBackgroundForEmptyPreview{false};
+    void updateDisplayRulerHeight();
     static void on_frame_show(mlt_consumer, VideoWidget *widget, mlt_event_data);
     static void on_frame_render(mlt_consumer, VideoWidget *widget, mlt_frame frame);
     /*static void on_gl_frame_show(mlt_consumer, VideoWidget *widget, mlt_event_data data);

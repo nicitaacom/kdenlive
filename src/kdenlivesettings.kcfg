@@ -386,6 +386,8 @@
     <entry name="ramPreviewLimitMB" type="Int">
       <label>Maximum RAM used for the current timeline preview, in MiB.</label>
       <default>4096</default>
+      <min>16</min>
+      <max>32768</max>
     </entry>
     <entry name="autopreview" type="Bool">
       <label>Automatically regenerate dirty zones of timeline preview.</label>

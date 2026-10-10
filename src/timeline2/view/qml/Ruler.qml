@@ -47,7 +47,7 @@ Item {
     property bool hoverResizeHandle: false
     readonly property int cursorShape: resizeActive ? Qt.SizeHorCursor : hoverResizeHandle ? Qt.SizeHorCursor : hoverGuide ? Qt.PointingHandCursor : Qt.ArrowCursor
     readonly property var effectZones: timeline.masterEffectZones
-    readonly property int guideLabelHeight: K.KdenliveSettings.showmarkers ? fontMetrics.height : 0
+    readonly property int guideLabelHeight: K.KdenliveSettings.showmarkers && guidesRepeater.count > 0 ? fontMetrics.height : 0
     readonly property int previewHeight: Math.ceil(timecodeContainer.height / 5)
     property color dimmedColor: (activePalette.text.r + activePalette.text.g + activePalette.text.b > 1.5) ? Qt.darker(activePalette.text, 1.3) : Qt.lighter(activePalette.text, 1.3)
     property color dimmedColor2: (activePalette.text.r + activePalette.text.g + activePalette.text.b > 1.5) ? Qt.darker(activePalette.text, 2.2) : Qt.lighter(activePalette.text, 2.2)

@@ -534,6 +534,8 @@ Monitor::Monitor(Kdenlive::MonitorId id, MonitorManager *manager, QWidget *paren
         addCompactWidgetMenu(m_streamAction, i18n("Audio Streams"));
     }
     auto *controlsMenu = new QMenu(i18n("Monitor Controls"), m_configMenuAction->menu());
+    controlsMenu->addAction(rewind);
+    controlsMenu->addAction(forward);
     for (QAction *action : std::as_const(m_normalToolbarActions)) {
         if (!action->isSeparator() && !m_compactToolbarActions.contains(action) && !m_compactWidgetMenus.contains(action)) {
             controlsMenu->addAction(action);
@@ -771,6 +773,7 @@ void Monitor::setupMenu(QMenu *goMenu, QMenu *overlayMenu, QAction *playZone, QA
         m_contextMenu->addMenu(overlayMenu);
         m_configMenuAction->menu()->addMenu(overlayMenu);
     }
+    m_contextMenu->addMenu(m_configMenuAction->menu());
 
     m_configMenuAction->addAction(m_monitorManager->getAction("mlt_scrub"));
 
@@ -822,6 +825,7 @@ void Monitor::slotForceSize(QAction *a)
             return;
         }
     }
+    const int toolbarHeight = m_toolbar->isHidden() ? 0 : m_toolbar->height();
     switch (resizeType) {
     case 100:
     case 50:
@@ -829,13 +833,13 @@ void Monitor::slotForceSize(QAction *a)
         setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
         m_glMonitor->setFixedImageSize(QSize(profileWidth, profileHeight));
         profileHeight += m_glMonitor->m_displayRulerHeight;
-        profileHeight += m_toolbar->height();
+        profileHeight += toolbarHeight;
         setMinimumSize(QSize(profileWidth, profileHeight));
         break;
     default:
         // Free resize
         m_glMonitor->setFixedImageSize(QSize());
-        setMinimumSize(QSize(profileWidth, profileHeight + m_toolbar->height() + m_glMonitor->getControllerProxy()->rulerHeight()));
+        setMinimumSize(QSize(profileWidth, profileHeight + toolbarHeight + m_glMonitor->getControllerProxy()->rulerHeight()));
         setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
         break;
     }
@@ -2504,7 +2508,7 @@ void Monitor::switchMonitorInfo(int code)
     updateQmlDisplay(currentOverlay);
     if (code == Monitor::InfoOverlay) {
         // Hide/show ruler
-        m_glMonitor->switchRuler(m_compactPresentation || (currentOverlay & Monitor::InfoOverlay));
+        m_glMonitor->switchRuler(!m_compactPresentation && (currentOverlay & Monitor::InfoOverlay));
     }
 }
 
@@ -2980,7 +2984,7 @@ void Monitor::slotSwitchRec(bool enable)
         m_recManager->toolbar()->setVisible(true);
     } else if (m_recManager->toolbar()->isVisible()) {
         m_recManager->stop();
-        m_toolbar->setVisible(true);
+        m_toolbar->setVisible(!m_compactPresentation);
         Q_EMIT refreshCurrentClip();
     }
 }
@@ -3009,8 +3013,9 @@ void Monitor::slotSwitchTrimming(bool enable)
     } else if (m_trimmingbar->isVisible()) {
         loadQmlScene(SceneType::MonitorSceneDefault);
         m_trimmingbar->setVisible(false);
-        m_toolbar->setVisible(true);
-        m_glMonitor->switchRuler(m_compactPresentation || (KdenliveSettings::displayClipMonitorInfo() & Monitor::InfoOverlay));
+        m_toolbar->setVisible(!m_compactPresentation);
+        const int overlay = m_id == Kdenlive::ClipMonitor ? KdenliveSettings::displayClipMonitorInfo() : KdenliveSettings::displayProjectMonitorInfo();
+        m_glMonitor->switchRuler(!m_compactPresentation && (overlay & Monitor::InfoOverlay));
     }
 }
 
@@ -3129,12 +3134,13 @@ void Monitor::setCompactPresentation(bool compact)
         }
     }
     m_toolbar->addActions(compact ? m_compactToolbarActions : m_normalToolbarActions);
+    m_toolbar->setVisible(!compact);
     for (QAction *action : std::as_const(m_compactMenuActions)) {
         action->setVisible(compact);
     }
     const int overlay = m_id == Kdenlive::ClipMonitor ? KdenliveSettings::displayClipMonitorInfo() : KdenliveSettings::displayProjectMonitorInfo();
     updateQmlDisplay(overlay);
-    m_glMonitor->switchRuler(compact || (overlay & Monitor::InfoOverlay));
+    m_glMonitor->switchRuler(!compact && (overlay & Monitor::InfoOverlay));
     displayAudioMonitor(isActive());
 }
 
@@ -3144,7 +3150,7 @@ void Monitor::updateQmlDisplay(int currentOverlay)
         return;
     }
     if (m_compactPresentation) {
-        // Keep the ruler and editing scene alive; only suppress informational overlays.
+        // Keep the editing scene alive while suppressing informational overlays.
         currentOverlay = Monitor::InfoOverlay;
     }
     m_glMonitor->rootObject()->setProperty("compactPresentation", m_compactPresentation);
@@ -3386,7 +3392,7 @@ void Monitor::setTimecodeOffset(int offset)
 void Monitor::focusTimecode()
 {
     if (m_compactPresentation) {
-        m_positionMenu->popup(m_toolbar->mapToGlobal(QPoint(0, m_toolbar->height())));
+        m_positionMenu->popup(m_glWidget->mapToGlobal(QPoint(0, m_glWidget->height())));
     }
     m_timePos->setFocus();
     m_timePos->selectAll();

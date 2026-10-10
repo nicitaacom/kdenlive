@@ -27,6 +27,7 @@ EffectsRepository::EffectsRepository()
     : AbstractAssetsRepository<AssetListType::AssetType>()
 {
     init();
+    initRegionBlurEffects();
     // Check that our favorite effects are valid
     QStringList invalidEffect;
     const QStringList effects = KdenliveSettings::favorite_effects();
@@ -43,6 +44,66 @@ EffectsRepository::EffectsRepository()
         }
         KdenliveSettings::setFavorite_effects(newFavorites);
     }
+}
+
+void EffectsRepository::initRegionBlurEffects()
+{
+    const QString regionService = QStringLiteral("kdenlive_region_blur");
+    if (!hasInternalEffect(regionService)) {
+        return;
+    }
+    const QSet<QString> blurServices{
+        QStringLiteral("box_blur"), QStringLiteral("boxblur"), QStringLiteral("frei0r.squareblur"), QStringLiteral("frei0r.IIRblur"),
+        QStringLiteral("avfilter.avgblur"), QStringLiteral("avfilter.gblur"), QStringLiteral("avfilter.smartblur"),
+        QStringLiteral("avfilter.boxblur"), QStringLiteral("avfilter.sab"), QStringLiteral("avfilter.dblur"),
+        QStringLiteral("kdenlive_spatial_blur"), QStringLiteral("kdenlive_motion_vector_blur"), QStringLiteral("kdenlive_blur_motion")};
+    std::unordered_map<QString, Info> regionEffects;
+    for (const auto &asset : m_assets) {
+        if ((!blurServices.contains(asset.second.mltId) && asset.first != QLatin1String("motion_transform_blur")) ||
+            asset.second.xml.tagName() != QLatin1String("effect")) {
+            continue;
+        }
+        Info region = asset.second;
+        region.id += QStringLiteral("-region");
+        region.mltId = regionService;
+        region.type = AssetListType::AssetType::Hidden;
+        region.features.insert(QStringLiteral("tenbit"), false);
+        // Clone the document so the existing full-frame effect definition remains intact.
+        QDomDocument document;
+        region.xml = document.importNode(asset.second.xml, true).toElement();
+        document.appendChild(region.xml);
+        region.xml.setAttribute(QStringLiteral("id"), region.id);
+        region.xml.setAttribute(QStringLiteral("tag"), regionService);
+        region.xml.setAttribute(QStringLiteral("type"), QStringLiteral("hidden"));
+        auto parameter = [&](const QString &type, const QString &name, const QString &value, const QString &label) {
+            QDomElement element = document.createElement(QStringLiteral("parameter"));
+            element.setAttribute(QStringLiteral("type"), type);
+            element.setAttribute(QStringLiteral("name"), name);
+            element.setAttribute(QStringLiteral("default"), value);
+            if (!label.isEmpty()) {
+                QDomElement title = document.createElement(QStringLiteral("name"));
+                title.appendChild(document.createTextNode(label));
+                element.appendChild(title);
+            }
+            return element;
+        };
+        QDomElement area = parameter(QStringLiteral("animatedrect"), QStringLiteral("region_rect"),
+                                     QStringLiteral("37.5% 37.5% 25% 25%"), i18n("Blur area"));
+        area.setAttribute(QStringLiteral("opacity"), QStringLiteral("false"));
+        region.xml.insertBefore(area, region.xml.firstChildElement(QStringLiteral("parameter")));
+        region.xml.appendChild(parameter(QStringLiteral("bool"), QStringLiteral("region_full_frame"), QStringLiteral("0"), i18n("Blur entire image")));
+        QDomElement source = parameter(QStringLiteral("fixed"), QStringLiteral("region_filter"), asset.second.mltId, QString());
+        source.setAttribute(QStringLiteral("value"), asset.second.mltId);
+        region.xml.appendChild(source);
+        regionEffects.emplace(region.id, std::move(region));
+    }
+    m_assets.insert(regionEffects.begin(), regionEffects.end());
+}
+
+QString EffectsRepository::regionBlurId(const QString &assetId) const
+{
+    const QString regionId = assetId + QStringLiteral("-region");
+    return exists(regionId) && m_assets.at(regionId).mltId == QLatin1String("kdenlive_region_blur") ? regionId : assetId;
 }
 
 Mlt::Properties *EffectsRepository::retrieveListFromMlt() const

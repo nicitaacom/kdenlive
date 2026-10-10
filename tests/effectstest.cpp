@@ -73,6 +73,98 @@ TEST_CASE("Effects stack", "[Effects]")
         REQUIRE(model->rowCount() == 1);
     }
 
+    SECTION("New blur has an editable area in one undoable effect")
+    {
+        const QString blurId = QStringLiteral("box_blur");
+        const QString regionId = EffectsRepository::get()->regionBlurId(blurId);
+        REQUIRE(regionId != blurId);
+        const int commands = undoStack->count();
+        REQUIRE(model->appendEffect(blurId, true));
+        REQUIRE(model->rowCount() == 1);
+        REQUIRE(model->checkConsistency());
+        REQUIRE(undoStack->count() == commands + 1);
+        auto effect = std::static_pointer_cast<EffectItemModel>(model->getEffectStackRow(0));
+        REQUIRE(effect->getAssetId() == regionId);
+        REQUIRE(effect->getAssetMltService() == QLatin1String("kdenlive_region_blur"));
+        REQUIRE(effect->getParamIndexFromName(QStringLiteral("region_rect")).isValid());
+        REQUIRE(effect->filter().get("region_filter") == blurId);
+        REQUIRE(effect->filter().get_int("region_full_frame") == 0);
+        undoStack->undo();
+        REQUIRE(model->rowCount() == 0);
+        REQUIRE(model->checkConsistency());
+        undoStack->redo();
+        REQUIRE(model->rowCount() == 1);
+        REQUIRE(model->checkConsistency());
+
+        // Copy/paste preserves the edited mask and original blur settings.
+        effect->setParameter(QStringLiteral("region_rect"), QStringLiteral("0=20 30 80 60"));
+        QDomDocument xml;
+        QDomElement saved = model->toXml(xml);
+        REQUIRE(model->copyXmlEffect(saved));
+        REQUIRE(model->rowCount() == 2);
+        auto pasted = std::static_pointer_cast<EffectItemModel>(model->getEffectStackRow(1));
+        REQUIRE(pasted->getAssetId() == regionId);
+        REQUIRE(pasted->filter().get("region_filter") == blurId);
+        REQUIRE(pasted->getParamFromName(QStringLiteral("region_rect")) == effect->getParamFromName(QStringLiteral("region_rect")));
+        REQUIRE(model->checkConsistency());
+        model->removeEffect(pasted);
+        REQUIRE(model->rowCount() == 1);
+        model->removeEffect(effect);
+        REQUIRE(model->rowCount() == 0);
+        REQUIRE(model->checkConsistency());
+        undoStack->undo();
+        REQUIRE(model->rowCount() == 1);
+        REQUIRE(model->checkConsistency());
+    }
+
+    SECTION("Saved full-frame blurs are not given a new mask")
+    {
+        QDomDocument xml;
+        QDomElement saved = xml.createElement(QStringLiteral("effects"));
+        QDomElement blur = xml.createElement(QStringLiteral("effect"));
+        blur.setAttribute(QStringLiteral("id"), QStringLiteral("box_blur"));
+        saved.appendChild(blur);
+        REQUIRE(model->copyXmlEffect(saved));
+        REQUIRE(model->rowCount() == 1);
+        auto effect = std::static_pointer_cast<EffectItemModel>(model->getEffectStackRow(0));
+        REQUIRE(effect->getAssetId() == QLatin1String("box_blur"));
+        REQUIRE(effect->getAssetMltService() == QLatin1String("box_blur"));
+        REQUIRE_FALSE(effect->getParamIndexFromName(QStringLiteral("region_rect")).isValid());
+        REQUIRE(model->checkConsistency());
+    }
+
+    SECTION("Blur added inside an existing mask uses that mask")
+    {
+        REQUIRE(model->appendEffect(QStringLiteral("mask_start-rotoscoping")));
+        REQUIRE(model->appendEffect(QStringLiteral("box_blur")));
+        REQUIRE(model->rowCount() == 2);
+        REQUIRE(std::static_pointer_cast<EffectItemModel>(model->getEffectStackRow(1))->getAssetId() == QLatin1String("box_blur"));
+        REQUIRE(model->appendEffect(QStringLiteral("mask_apply")));
+        REQUIRE(model->appendEffect(QStringLiteral("box_blur")));
+        REQUIRE(model->rowCount() == 4);
+        REQUIRE(std::static_pointer_cast<EffectItemModel>(model->getEffectStackRow(3))->getAssetId() == QLatin1String("box_blur-region"));
+        REQUIRE(model->checkConsistency());
+    }
+
+    SECTION("All supported CPU blurs expose an area variant")
+    {
+        for (const QString &id : {QStringLiteral("box_blur"), QStringLiteral("avfilter.avgblur"), QStringLiteral("avfilter.gblur"),
+                                  QStringLiteral("avfilter.smartblur"), QStringLiteral("avfilter.boxblur"), QStringLiteral("avfilter.sab"),
+                                  QStringLiteral("avfilter.dblur"), QStringLiteral("frei0r.squareblur"), QStringLiteral("kdenlive_spatial_blur"),
+                                  QStringLiteral("kdenlive_motion_vector_blur"), QStringLiteral("kdenlive_blur_motion"), QStringLiteral("motion_transform_blur")}) {
+            if (!EffectsRepository::get()->exists(id)) {
+                continue;
+            }
+            const QString regionId = EffectsRepository::get()->regionBlurId(id);
+            INFO(id.toStdString());
+            REQUIRE(regionId != id);
+            REQUIRE(EffectsRepository::get()->getType(regionId) == AssetListType::AssetType::Hidden);
+            REQUIRE(model->appendEffect(id));
+            REQUIRE(std::static_pointer_cast<EffectItemModel>(model->getEffectStackRow(model->rowCount() - 1))->getAssetId() == regionId);
+            REQUIRE(model->checkConsistency());
+        }
+    }
+
     SECTION("Create cut with fade in")
     {
         auto clipModel = timeline->getClipEffectStackModel(cid1);

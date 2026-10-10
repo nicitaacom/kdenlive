@@ -26,6 +26,7 @@ add_library(mltkdenlivenative MODULE
     filter_shake.cpp
     filter_motionvector.cpp
     filter_spatialblur.cpp
+    filter_regionblur.cpp
     filter_blurmotion.cpp
     filter_magnify.cpp
     pinchwarp.cpp
@@ -62,6 +63,10 @@ if(UNIX AND NOT APPLE)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(test_native_regionblur test_regionblur.cpp filter_regionblur.cpp)
+    target_compile_features(test_native_regionblur PRIVATE cxx_std_17)
+    target_link_libraries(test_native_regionblur PRIVATE PkgConfig::NATIVE_MLT)
+    add_test(NAME native_regionblur COMMAND test_native_regionblur)
     add_executable(test_native_motioncurve test_motioncurve.cpp motioncurve.cpp motioncurve.hpp)
     target_compile_features(test_native_motioncurve PRIVATE cxx_std_17)
     target_link_libraries(test_native_motioncurve PRIVATE Qt${QT_MAJOR_VERSION}::Core)

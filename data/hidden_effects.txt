@@ -8,3 +8,4 @@ qtblend_mode
 deinterlace
 imageconvert
 subtitle_feed
+kdenlive_region_blur

@@ -35,6 +35,8 @@ public:
     QPair<QStringList, QStringList> fixDeprecatedEffects();
     /** @brief Returns true if this is an effect group */
     bool isGroup(const QString &assetId) const;
+    /** @brief Return the area-masked variant of a blur, or the original ID if none is available. */
+    QString regionBlurId(const QString &assetId) const;
     void deleteEffect(const QString &id);
     /** @brief Returns true if effect is audio */
     bool isAudioEffect(const QString &assetId) const;
@@ -80,4 +82,6 @@ protected:
 
     /** @brief flag to create the repository only once */
     static std::once_flag m_onceFlag;
+
+    void initRegionBlurEffects();
 };

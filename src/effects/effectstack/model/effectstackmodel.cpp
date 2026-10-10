@@ -1033,7 +1033,31 @@ std::pair<bool, bool> EffectStackModel::doAppendEffect(const QString &effectId, 
         // Pushing a nested command here makes the outer add a no-op on undo.
         return {copyXmlEffectWithUndo(doc, undo, redo), false};
     }
-    auto effect = EffectItemModel::construct(effectId, shared_from_this());
+    // New clip blurs include their editable area in the same effect. Loading,
+    // pasting and templates retain the effect IDs and masks they were saved with.
+    QString addedEffectId = effectId;
+    if (params.isEmpty() && (m_ownerId.type == KdenliveObjectType::TimelineClip || m_ownerId.type == KdenliveObjectType::BinClip)) {
+        int openMasks = 0;
+        for (const auto &leaf : rootItem->getLeaves()) {
+            if (std::static_pointer_cast<AbstractEffectItem>(leaf)->effectItemType() != EffectItemType::Effect) {
+                continue;
+            }
+            auto item = std::static_pointer_cast<EffectItemModel>(leaf);
+            if (!item->isAssetEnabled()) {
+                continue;
+            }
+            const QString service = item->getAssetMltService();
+            if (service == QLatin1String("mask_start")) {
+                ++openMasks;
+            } else if (service == QLatin1String("mask_apply") && openMasks > 0) {
+                --openMasks;
+            }
+        }
+        if (openMasks == 0) {
+            addedEffectId = EffectsRepository::get()->regionBlurId(effectId);
+        }
+    }
+    auto effect = EffectItemModel::construct(addedEffectId, shared_from_this());
     PlaylistState::ClipState state = pCore->getItemState(m_ownerId).first;
     if (state == PlaylistState::VideoOnly) {
         if (effect->isAudio()) {

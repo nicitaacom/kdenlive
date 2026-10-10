@@ -8,6 +8,7 @@ audiolevelgraph.xml
 audiomap.xml
 audiopan.xml
 audiospectrum.xml
+audio_visualizer.xml
 audiowave.xml
 audiowaveform.xml
 boxblur.xml

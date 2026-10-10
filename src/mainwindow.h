@@ -157,6 +157,8 @@ public:
     void raiseMonitor(bool clipMonitor, bool raise = false);
     /** @brief Raise (show) the audio mixer dock */
     void raiseMixer(bool raise = true);
+    /** @brief Open the effect stack after explicitly adding an effect. */
+    void raiseEffectStack();
 
     /** @brief Raise (show) the project bin
      * @param unconditionally if false, we won't raise the bin if docked with the project monitor */

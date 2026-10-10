@@ -57,6 +57,12 @@ Item {
 
     readonly property int audioStreamCount: controller.audioStreams.length
 
+    Rectangle {
+        anchors.fill: parent
+        color: "black"
+        visible: root.showEmptyState || root.controller.clipType === K.ClipType.Audio
+    }
+
     onAudioStreamCountChanged: () => {
         thumbTimer.start()
     }
@@ -206,7 +212,7 @@ Item {
                 enabled: !cursorArea.containsMouse
                 dragButtonsVisible: root.inLowerThird
                 dirty: !root.controller.audioSynced
-                visible: isAudioClip || (!root.compactPresentation && (K.KdenliveSettings.alwaysShowMonitorAudio || root.showAudiothumb) && (root.controller.clipType === K.ClipType.AV || root.controller.clipHasAV))
+                visible: !root.compactPresentation && (isAudioClip || ((K.KdenliveSettings.alwaysShowMonitorAudio || root.showAudiothumb) && (root.controller.clipType === K.ClipType.AV || root.controller.clipHasAV)))
             }
             Menu {
                 id: contextMenu
@@ -645,5 +651,5 @@ Item {
             }
         }
     }
-    EmptyPreview { showEmptyState: root.showEmptyState }
+    EmptyPreview { showEmptyState: root.showEmptyState && root.controller.clipType !== K.ClipType.Audio }
 }

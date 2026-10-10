@@ -20,7 +20,7 @@ Rectangle {
     signal zoomOutRuler(int xPos)
     signal zoomInRuler(int xPos)
 
-    color: activePalette.midlight
+    color: monitorController.clipType === K.ClipType.Audio ? "black" : activePalette.midlight
     width: parent.width
 
     SystemPalette { id: activePalette }
@@ -93,14 +93,14 @@ Rectangle {
                     height: thumbsContainer.streamHeight - 2
                     anchors.right: parent.right
                     anchors.left: parent.left
-                    color: Utils.mixColors(activePalette.midlight, activePalette.text, 0.3)
+                    color: audioSeekZone.monitorController.clipType === K.ClipType.Audio ? "black" : Utils.mixColors(activePalette.midlight, activePalette.text, 0.3)
                 }
                 // Highlight color for the selected wave part
                 Rectangle {
                     x: audioSeekZone.monitorController.zoneIn * audioSeekZone.width / audioSeekZone.duration
                     width: (audioSeekZone.monitorController.zoneOut - audioSeekZone.monitorController.zoneIn) * audioSeekZone.width / audioSeekZone.duration
                     height: thumbsContainer.streamHeight - 2
-                    color:  Utils.mixColors(activePalette.midlight, activePalette.highlight, 0.7)
+                    color: audioSeekZone.monitorController.clipType === K.ClipType.Audio ? "black" : Utils.mixColors(activePalette.midlight, activePalette.highlight, 0.7)
                         //Utils.desaturateColor(activePalette.highlight, 0.6, 1)
                     visible: audioSeekZone.monitorController.zoneOut > audioSeekZone.monitorController.zoneIn
                 }
@@ -120,10 +120,10 @@ Rectangle {
                     scaleFactor: audioSeekZone.width / aClipDuration
                     waveInPoint: 0
                     waveOutPoint: waveform2.aClipDuration
-                    fgColorEven: "#00000000"//K.KdenliveSettings.thumbColor1
-                    fgColorOdd: "#00000000" //K.KdenliveSettings.thumbColor2
-                    bgColorEven: audioSeekZone.color
-                    bgColorOdd: audioSeekZone.color
+                    fgColorEven: audioSeekZone.monitorController.clipType === K.ClipType.Audio ? "white" : "#00000000"
+                    fgColorOdd: audioSeekZone.monitorController.clipType === K.ClipType.Audio ? "white" : "#00000000"
+                    bgColorEven: audioSeekZone.monitorController.clipType === K.ClipType.Audio ? "#00000000" : audioSeekZone.color
+                    bgColorOdd: audioSeekZone.monitorController.clipType === K.ClipType.Audio ? "#00000000" : audioSeekZone.color
                     Rectangle {
                         width: streamContainer.width
                         height: 2

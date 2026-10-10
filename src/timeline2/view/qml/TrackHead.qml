@@ -22,6 +22,7 @@ Rectangle {
     required property string trackName
     required property string effectNames
     required property bool isStackEnabled
+    required property real trackVolume
     required property bool isDisabled
     required property bool collapsed
     required property int isComposite
@@ -354,7 +355,7 @@ Rectangle {
             color: activePalette.text
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignLeft
-            visible: !trackLabel.visible && trackHeadRoot.width > (trackTarget.width + expandButton.width + trackLed.width + (4 * muteButton.width) + 4)
+            visible: !trackLabel.visible && trackHeadRoot.width > (trackTarget.width + expandButton.width + trackLed.width + buttonsRow.width + 4)
         }
         Row {
             id: buttonsRow
@@ -411,6 +412,65 @@ Rectangle {
                     font: K.UiUtils.smallestReadableFont
                     text: trackHeadRoot.isAudio ? (trackHeadRoot.isDisabled? KI18n.i18n("Unmute") : KI18n.i18n("Mute"))
                                   : (trackHeadRoot.isDisabled? KI18n.i18n("Show") : KI18n.i18n("Hide"))
+                }
+            }
+
+            Dial {
+                id: volumeDial
+                objectName: "trackVolumeDial"
+                visible: trackHeadRoot.isAudio
+                enabled: !trackHeadRoot.isLocked && !trackHeadRoot.isDisabled
+                width: visible ? trackHeadRoot.collapsedHeight : 0
+                height: trackHeadRoot.collapsedHeight
+                from: -60
+                to: 24
+                stepSize: 0.5
+                inputMode: Dial.Vertical
+                focusPolicy: Qt.StrongFocus
+                value: trackHeadRoot.trackVolume
+                property real previousVolume: 0
+                onPressedChanged: {
+                    if (pressed) {
+                        previousVolume = trackHeadRoot.trackVolume
+                    } else {
+                        trackHeadRoot.controller.commitTrackVolume(trackHeadRoot.trackId, previousVolume)
+                    }
+                }
+                onMoved: {
+                    const previous = trackHeadRoot.trackVolume
+                    trackHeadRoot.controller.setTrackVolume(trackHeadRoot.trackId, value)
+                    if (!pressed) {
+                        trackHeadRoot.controller.commitTrackVolume(trackHeadRoot.trackId, previous)
+                    }
+                }
+                background: Rectangle {
+                    x: (volumeDial.width - width) / 2
+                    y: (volumeDial.height - height) / 2
+                    width: volumeDial.width - 6
+                    height: width
+                    radius: width / 2
+                    color: activePalette.base
+                    border.color: volumeDial.hovered || volumeDial.pressed ? activePalette.highlight : activePalette.text
+                    opacity: volumeDial.enabled ? 1 : 0.4
+                    Rectangle {
+                        width: 2
+                        height: parent.height / 3
+                        x: (parent.width - width) / 2
+                        y: 2
+                        radius: 1
+                        color: activePalette.highlight
+                        transform: Rotation {
+                            origin.x: 1
+                            origin.y: (volumeDial.background as Rectangle).height / 2 - 2
+                            angle: volumeDial.angle
+                        }
+                    }
+                }
+                handle: Item {}
+                Accessible.name: KI18n.i18n("Track volume")
+                ToolTip {
+                    visible: volumeDial.hovered || volumeDial.pressed
+                    text: KI18n.i18n("Volume: %1 dB\nDrag up or down to adjust volume", Number(volumeDial.value).toFixed(1))
                 }
             }
 

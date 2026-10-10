@@ -299,7 +299,7 @@ void MixerWidget::setupFilters(Mlt::Tractor *service)
         if (filterService == QLatin1String("audiolevel")) {
             m_monitorFilter = fl;
             m_monitorFilter->set("disable", 0);
-        } else if (filterService == QLatin1String("volume")) {
+        } else if (filterService == QLatin1String("volume") && fl->get_int("internal_added") == 237) {
             m_levelFilter = fl;
             double volume = m_levelFilter->get_double("level");
             m_volumeSpin->setValue(volume);
@@ -457,10 +457,11 @@ void MixerWidget::setupConnections()
             double dbValue = toDB(value / 100.0);
             m_volumeSpin->setValue(dbValue);
             m_levelFilter->set("level", dbValue);
-            m_levelFilter->set("disable", value == 60 ? 1 : 0);
+            m_levelFilter->set("disable", qFuzzyIsNull(dbValue) ? 1 : 0);
             m_levels.clear();
             Q_EMIT m_manager->purgeCache();
             pCore->setDocumentModified();
+            Q_EMIT volumeChanged(dbValue);
         }
     });
     connect(m_volumeSpin, &QDoubleSpinBox::valueChanged, this, [&](double val) {
@@ -509,6 +510,20 @@ void MixerWidget::setTrackName(const QString &name)
     } else {
         m_trackLabel->setText(QStringLiteral("%1 - %2").arg(m_trackTag, name));
     }
+}
+
+void MixerWidget::updateVolume()
+{
+    if (!m_levelFilter || m_recording || (m_monitor && m_monitor->isChecked())) {
+        return;
+    }
+    QSignalBlocker spinBlocker(m_volumeSpin);
+    QSignalBlocker sliderBlocker(m_volumeSlider);
+    const double volume = m_levelFilter->get_double("level");
+    m_volumeSpin->setValue(volume);
+    m_volumeSlider->setValue(fromDB(volume) * 100.);
+    m_levels.clear();
+    Q_EMIT m_manager->purgeCache();
 }
 
 void MixerWidget::setMute(bool mute)

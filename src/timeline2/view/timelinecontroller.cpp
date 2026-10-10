@@ -139,6 +139,7 @@ void TimelineController::setModel(std::shared_ptr<TimelineItemModel> model, bool
     connect(m_model.get(), &TimelineItemModel::requestMonitorRefresh, [&]() { pCore->refreshProjectMonitorOnce(true); });
     if (auto *monitorManager = pCore->monitorManager(); monitorManager && monitorManager->projectMonitor()) {
         connect(m_model.get(), &TimelineModel::timelineContentChanged, monitorManager->projectMonitor(), &Monitor::updateEmptyPreviewState);
+        connect(m_model.get(), &TimelineModel::timelineContentChanged, monitorManager->clipMonitor(), &Monitor::updateEmptyPreviewState);
     }
     connect(m_model.get(), &TimelineModel::audioTargetChanged, this, &TimelineController::updateAudioTarget);
     connect(m_model.get(), &TimelineModel::durationUpdated, this, &TimelineController::checkDuration);
@@ -3908,7 +3909,10 @@ void TimelineController::addEffectToClip(const QString &assetId, int clipId)
         return;
     }
     // Open clip's effects stack
+    auto stack = m_model->getClipEffectStackModel(clipId);
+    stack->setActiveEffect(stack->rowCount() - 1);
     showAsset(clipId);
+    pCore->window()->raiseEffectStack();
     if (KdenliveSettings::seekonaddeffect()) {
         // Move timeline cursor inside clip if it is not
         int in = m_model->getClipPosition(clipId);

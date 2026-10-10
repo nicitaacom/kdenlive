@@ -522,7 +522,7 @@ function getTrackColor(audio, header) {
     readonly property int activeTool: K.Core.activeTool
     readonly property int minClipWidthForViews: 1.5 * K.UiUtils.baseSizeMedium
     readonly property int collapsedHeight: Math.max(28, K.UiUtils.baseSizeMedium * 1.8)
-    readonly property int minHeaderWidth: 6 * collapsedHeight
+    readonly property int minHeaderWidth: 7 * collapsedHeight
     readonly property bool autoTrackHeight: root.timeline.autotrackHeight
     readonly property color selectedTrackColor: Qt.rgba(activePalette.highlight.r, activePalette.highlight.g, activePalette.highlight.b, 0.2)
     readonly property color frameColor: Qt.rgba(activePalette.shadow.r, activePalette.shadow.g, activePalette.shadow.b, 0.5)
@@ -1277,6 +1277,7 @@ function getTrackColor(audio, header) {
                             showAudioRecord: model.audioRecord
                             effectNames: model.effectNames
                             isStackEnabled: model.isStackEnabled
+                            trackVolume: model.trackVolume
                             width: root.headerWidth
                             current: model.item === root.timeline.activeTrack
                             trackId: model.item

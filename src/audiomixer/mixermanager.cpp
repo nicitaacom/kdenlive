@@ -127,6 +127,12 @@ void MixerManager::registerTrack(int tid, Mlt::Tractor *service, const QString &
     int mixerCount = m_mixers.size();
     QPalette::ColorRole colorRole = (mixerCount % 2 == 0) ? QPalette::Base : QPalette::AlternateBase;
     mixer->setBackgroundColor(colorRole);
+    connect(mixer.get(), &MixerWidget::volumeChanged, this, [this, tid](double) {
+        if (m_model && m_model->isTrack(tid)) {
+            const QModelIndex ix = m_model->makeTrackIndexFromID(tid);
+            Q_EMIT m_model->dataChanged(ix, ix, {TimelineModel::TrackVolumeRole});
+        }
+    });
 
     connect(mixer.get(), &MixerWidget::muteTrack, this,
             [&](int id, bool mute) { m_model->setTrackProperty(id, "hide", mute ? QStringLiteral("1") : QStringLiteral("3")); });
@@ -294,6 +300,11 @@ void MixerManager::setModel(std::shared_ptr<TimelineItemModel> model)
                 m_mixers[id]->setMute(m_model->data(topLeft, TimelineModel::IsDisabledRole).toBool());
             } else {
                 qDebug() << "=== MODEL DATA CHANGED: MUTE DONE TRACK NOT FOUND!!!";
+            }
+        } else if (roles.contains(TimelineModel::TrackVolumeRole)) {
+            int id = int(topLeft.internalId());
+            if (m_mixers.count(id) > 0) {
+                m_mixers[id]->updateVolume();
             }
         } else if (roles.contains(TimelineModel::NameRole)) {
             int id = int(topLeft.internalId());

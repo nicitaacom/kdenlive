@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <!DOCTYPE kpartgui SYSTEM "kpartgui.dtd">
-<kpartgui name="kdenlive" version="250" translationDomain="kdenlive">
+<kpartgui name="kdenlive" version="251" translationDomain="kdenlive">
   <MenuBar>
     <Menu name="file">
       <Action name="file_new"/>
@@ -226,6 +226,8 @@
     </Menu>
     <Menu name="tool">
       <text>Tool</text>
+      <Action name="audio_visualizer"/>
+      <Separator/>
       <Action name="normal_mode"/>
       <Action name="overwrite_mode"/>
       <Action name="insert_mode"/>

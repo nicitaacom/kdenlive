@@ -5,6 +5,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 */
 
 #include "mainwindow.h"
+#include "audiovisualizer/visualizerdialog.hpp"
 #include "assets/assetpanel.hpp"
 #include "audiomixer/mixermanager.hpp"
 #include "bin/clipcreator.hpp"
@@ -2407,6 +2408,12 @@ void MainWindow::setupActions()
     addAction(QStringLiteral("delete_subtitle_clip"), i18n("Delete Subtitle"), this, SLOT(slotDeleteItem()), QIcon::fromTheme(QStringLiteral("edit-delete")));
     addAction(QStringLiteral("audio_recognition"), i18n("Speech Recognition…"), this, SLOT(slotSpeechRecognition()),
               QIcon::fromTheme(QStringLiteral("autocorrection")));
+    auto *visualizer = new QAction(QIcon::fromTheme(QStringLiteral("audio-x-generic")), i18n("Audio Visualizer…"), this);
+    actionCollection()->addAction(QStringLiteral("audio_visualizer"), visualizer);
+    connect(visualizer, &QAction::triggered, this, [this] {
+        auto *timeline = getCurrentTimeline();
+        if (timeline) AudioVisualizer::VisualizerDialog::open(timeline->controller()->getModel(), timeline->controller()->getMainSelectedClip(), this);
+    });
 
     m_saveAction = KStandardAction::save(pCore->projectManager(), SLOT(saveFile()), actionCollection());
     m_saveAction->setIcon(QIcon::fromTheme(QStringLiteral("document-save")));
@@ -4975,6 +4982,12 @@ void MainWindow::raiseMonitor(bool clipMonitor, bool raise)
         }
         m_projectMonitorDock->setAsCurrentTab();
     }
+}
+
+void MainWindow::raiseEffectStack()
+{
+    m_effectStackDock->open();
+    m_effectStackDock->setAsCurrentTab();
 }
 
 void MainWindow::raiseMixer(bool raise)

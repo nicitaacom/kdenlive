@@ -9,9 +9,59 @@
 #include "doc/kdenlivedoc.h"
 #include "transitions/transitionsrepository.hpp"
 #include <QUndoGroup>
+#include <mlt++/MltFilter.h>
 
 using namespace fakeit;
 std::default_random_engine g(42);
+
+TEST_CASE("Track volume shares the mixer filter and supports gesture undo", "[TrackModel][Audio]")
+{
+    auto undoStack = std::make_shared<DocUndoStack>(nullptr);
+    KdenliveDoc document(undoStack);
+    pCore->projectManager()->testSetDocument(&document);
+    auto timeline = KdenliveTests::createTimelineModel(document.uuid(), undoStack);
+    KdenliveTests::finishTimelineConstruct(timeline);
+    pCore->projectManager()->testSetActiveTimeline(timeline);
+    int audioTrack, videoTrack;
+    REQUIRE(timeline->requestTrackInsertion(-1, audioTrack, QString(), true));
+    REQUIRE(timeline->requestTrackInsertion(-1, videoTrack));
+    auto track = KdenliveTests::getTrackById_const(timeline, audioTrack);
+    const QModelIndex ix = timeline->makeTrackIndexFromID(audioTrack);
+
+    // A user-added Volume effect must remain independent of the mixer gain.
+    Mlt::Filter effect(pCore->getProjectProfile(), "volume");
+    effect.set("level", 3.);
+    Mlt::Producer &service = *track;
+    service.attach(effect);
+    const int filtersBefore = service.filter_count();
+    REQUIRE(timeline->data(ix, TimelineModel::TrackVolumeRole).toDouble() == Approx(0.));
+    const int commandsBefore = undoStack->count();
+    REQUIRE(timeline->setTrackVolume(audioTrack, -6.));
+    REQUIRE(timeline->setTrackVolume(audioTrack, -12.));
+    REQUIRE(service.filter_count() == filtersBefore + 1);
+    REQUIRE(effect.get_double("level") == Approx(3.));
+    REQUIRE(timeline->data(ix, TimelineModel::TrackVolumeRole).toDouble() == Approx(-12.));
+    REQUIRE(undoStack->count() == commandsBefore);
+    timeline->commitTrackVolume(audioTrack, 0.);
+    REQUIRE(undoStack->count() == commandsBefore + 1);
+    undoStack->undo();
+    REQUIRE(track->volume() == Approx(0.));
+    undoStack->redo();
+    REQUIRE(track->volume() == Approx(-12.));
+    REQUIRE(service.filter_count() == filtersBefore + 1);
+
+    // Returning to unity gain bypasses the mixer filter, without removing it.
+    REQUIRE(timeline->setTrackVolume(audioTrack, 0.));
+    std::unique_ptr<Mlt::Filter> mixerFilter(service.filter(filtersBefore));
+    REQUIRE(mixerFilter->get_int("disable") == 1);
+    REQUIRE(mixerFilter->get_int("internal_added") == 237);
+    REQUIRE_FALSE(timeline->setTrackVolume(videoTrack, -12.));
+    REQUIRE_FALSE(timeline->setTrackVolume(-1, -12.));
+    REQUIRE(timeline->setTrackVolume(audioTrack, -200.));
+    REQUIRE(track->volume() == Approx(-100.));
+    service.detach(effect);
+    pCore->projectManager()->closeCurrentDocument(false, false);
+}
 
 TEST_CASE("Basic creation/deletion of a track", "[TrackModel]")
 {

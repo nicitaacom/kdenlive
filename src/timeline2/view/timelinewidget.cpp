@@ -133,7 +133,8 @@ void TimelineWidget::setTimelineMenu(QMenu *clipMenu, QMenu *compositionMenu, QM
     m_addClipMenu = addClipMenu;
     updateEffectFavorites();
     updateTransitionFavorites();
-    connect(m_favEffects, &QMenu::triggered, this, [&](QAction *ac) { timelineController.addEffectToClip(ac->data().toString()); });
+    connect(m_favEffects, &QMenu::triggered, this,
+            [&](QAction *ac) { timelineController.addEffectToClip(ac->data().toString(), m_favEffects->property("clipId").toInt()); });
     connect(m_favCompositions, &QMenu::triggered, this, [&](QAction *ac) { timelineController.addCompositionToClip(ac->data().toString()); });
     connect(m_guideMenu, &QMenu::triggered, this, [&](QAction *ac) { timelineController.setPosition(ac->data().toInt()); });
     connect(m_thumbsMenu, &QMenu::triggered, this,
@@ -224,6 +225,7 @@ void TimelineWidget::mouseMoveEvent(QMouseEvent *event)
 
 void TimelineWidget::showClipMenu(int cid)
 {
+    m_favEffects->setProperty("clipId", cid);
     // Hide not applicable effects
     QList<QAction *> effects = m_favEffects->actions();
     int tid = model()->getClipTrackId(cid);

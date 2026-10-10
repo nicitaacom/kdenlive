@@ -892,6 +892,7 @@ void Monitor::buildBackgroundedProducer(int pos)
         m_glMonitor->setProducer(std::make_shared<Mlt::Producer>(trac), isActive(), pos);
     }
     m_openMutex.unlock();
+    updateEmptyPreviewState();
 }
 
 void Monitor::updateMarkers()
@@ -3247,11 +3248,18 @@ void Monitor::setProducer(const QUuid uuid, std::shared_ptr<Mlt::Producer> produ
 
 void Monitor::updateEmptyPreviewState()
 {
-    if (m_id != Kdenlive::ProjectMonitor) {
+    if (m_id == Kdenlive::ClipMonitor && m_controller) {
+        m_glMonitor->setBlackBackgroundForEmptyPreview(!m_controller->hasVideo());
+        return;
+    }
+    if (m_id != Kdenlive::ProjectMonitor && m_id != Kdenlive::ClipMonitor) {
         return;
     }
 
     auto *timeline = pCore->window()->getCurrentTimeline();
+    if (m_id == Kdenlive::ClipMonitor && (!timeline || m_displayedUuid != timeline->model()->uuid())) {
+        return;
+    }
     const bool hasVideo = timeline && timeline->model()->hasVideoClips();
     m_glMonitor->setBlackBackgroundForEmptyPreview(!hasVideo);
 }

@@ -112,6 +112,9 @@ public:
     // TODO make protected
     QVariant getProperty(const QString &name) const;
     void setProperty(const QString &name, const QString &value);
+    /** @brief Gain of the built-in mixer volume filter, in dB. */
+    double volume() const;
+    bool setVolume(double volume);
     /** @brief Remove a composition between 2 same track clips */
     bool requestRemoveMix(std::pair<int, int> clipIds, Fun &undo, Fun &redo);
     /** @brief Create a composition between 2 same track clips */

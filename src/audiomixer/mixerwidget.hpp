@@ -46,6 +46,8 @@ public:
     static void property_changedV2(mlt_service, MixerWidget *widget, mlt_event_data data);
     void setTrackName(const QString &name);
     void setMute(bool mute);
+    /** @brief Refresh playback gain controls from the shared mixer filter. */
+    void updateVolume();
     /** @brief Returns true if track is muted
      * */
     bool isMute() const;
@@ -131,6 +133,7 @@ private:
     std::list<int> &getGainScaleValues();
 
 Q_SIGNALS:
+    void volumeChanged(double volume);
     void gotLevels(QPair<double, double>);
     void muteTrack(int tid, bool mute);
     void toggleSolo(int tid, bool toggled);

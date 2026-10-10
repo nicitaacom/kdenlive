@@ -5,6 +5,8 @@ pkg_check_modules(NATIVE_MLT REQUIRED IMPORTED_TARGET mlt-framework-7)
 find_package(OpenMP QUIET COMPONENTS CXX)
 
 add_library(mltkdenlivenative MODULE
+    filter_audiovisualizer.cpp
+    ../audiovisualizer/spectrum.cpp
     motioncurve.cpp
     motioncurve.hpp
     motionvector.cpp
@@ -38,7 +40,8 @@ add_library(mltkdenlivenative MODULE
     filter_bubblewarp.cpp
 )
 target_compile_features(mltkdenlivenative PRIVATE cxx_std_17)
-target_link_libraries(mltkdenlivenative PRIVATE PkgConfig::NATIVE_MLT Qt${QT_MAJOR_VERSION}::Core)
+target_include_directories(mltkdenlivenative PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(mltkdenlivenative PRIVATE PkgConfig::NATIVE_MLT Mlt7::mlt++ Qt${QT_MAJOR_VERSION}::Core Qt${QT_MAJOR_VERSION}::Gui kiss_fft)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(mltkdenlivenative PRIVATE OpenMP::OpenMP_CXX)
 endif()
@@ -63,6 +66,11 @@ if(UNIX AND NOT APPLE)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(test_audio_visualizer test_audiovisualizer.cpp filter_audiovisualizer.cpp ../audiovisualizer/spectrum.cpp
+                   ../audiovisualizer/captionclient.cpp ../audiovisualizer/captionclient.hpp)
+    target_include_directories(test_audio_visualizer PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(test_audio_visualizer PRIVATE Mlt7::mlt++ Qt${QT_MAJOR_VERSION}::Gui Qt${QT_MAJOR_VERSION}::Network KF${KF_MAJOR}::I18n kiss_fft)
+    add_test(NAME audio_visualizer COMMAND test_audio_visualizer)
     add_executable(test_native_regionblur test_regionblur.cpp filter_regionblur.cpp)
     target_compile_features(test_native_regionblur PRIVATE cxx_std_17)
     target_link_libraries(test_native_regionblur PRIVATE PkgConfig::NATIVE_MLT)

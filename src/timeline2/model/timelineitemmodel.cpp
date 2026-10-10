@@ -24,6 +24,7 @@
 #include "transitions/transitionsrepository.hpp"
 #include <QDebug>
 #include <QFileInfo>
+#include <cmath>
 #include <mlt++/MltField.h>
 #include <mlt++/MltProfile.h>
 #include <mlt++/MltTractor.h>
@@ -301,6 +302,7 @@ QHash<int, QByteArray> TimelineItemModel::roleNames() const
     roles[PositionOffsetRole] = "positionOffset";
     roles[ThumbsFormatRole] = "thumbsFormat";
     roles[AudioRecordRole] = "audioRecord";
+    roles[TrackVolumeRole] = "trackVolume";
     roles[TrackActiveRole] = "trackActive";
     roles[EffectNamesRole] = "effectNames";
     roles[EffectsEnabledRole] = "isStackEnabled";
@@ -468,6 +470,8 @@ QVariant TimelineItemModel::data(const QModelIndex &index, int role) const
         case TrackActiveRole: {
             return getTrackById_const(id)->isTimelineActive();
         }
+        case TrackVolumeRole:
+            return getTrackById_const(id)->volume();
         case EffectNamesRole: {
             return getTrackById_const(id)->effectNames();
         }
@@ -594,6 +598,36 @@ void TimelineItemModel::setTrackProperty(int trackId, const QString &name, const
             Q_EMIT trackVisibilityChanged();
         }
     }
+}
+
+bool TimelineItemModel::setTrackVolume(int tid, double volume)
+{
+    if (!isTrack(tid) || !isAudioTrack(tid) || !std::isfinite(volume)) {
+        return false;
+    }
+    volume = qBound(-100., volume, 60.);
+    if (!getTrackById(tid)->setVolume(volume)) {
+        return false;
+    }
+    QModelIndex ix = makeTrackIndexFromID(tid);
+    Q_EMIT dataChanged(ix, ix, {TrackVolumeRole});
+    pCore->invalidateAudio(ObjectId(KdenliveObjectType::TimelineTrack, tid, m_uuid));
+    pCore->setDocumentModified();
+    return true;
+}
+
+void TimelineItemModel::commitTrackVolume(int tid, double previousVolume)
+{
+    if (!isTrack(tid) || !isAudioTrack(tid) || !std::isfinite(previousVolume)) {
+        return;
+    }
+    const double volume = getTrackById_const(tid)->volume();
+    if (qFuzzyCompare(volume + 1., previousVolume + 1.)) {
+        return;
+    }
+    Fun undo = [this, tid, previousVolume]() { return setTrackVolume(tid, previousVolume); };
+    Fun redo = [this, tid, volume]() { return setTrackVolume(tid, volume); };
+    pCore->pushUndo(undo, redo, i18n("Adjust track volume"));
 }
 
 void TimelineItemModel::setTrackStackEnabled(int tid, bool enable)

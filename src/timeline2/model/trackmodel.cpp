@@ -20,6 +20,7 @@
 #include <QDebug>
 #include <QModelIndex>
 #include <memory>
+#include <mlt++/MltFilter.h>
 #include <mlt++/MltTransition.h>
 
 TrackModel::TrackModel(const std::weak_ptr<TimelineModel> &parent, int id, const QString &trackName, bool audioTrack)
@@ -989,6 +990,42 @@ void TrackModel::setProperty(const QString &name, const QString &value)
             m_playlist.set(name.toUtf8().constData(), value.toInt());
         }
     }
+}
+
+double TrackModel::volume() const
+{
+    READ_LOCK();
+    for (int i = 0; i < m_track->filter_count(); ++i) {
+        std::unique_ptr<Mlt::Filter> filter(m_track->filter(i));
+        if (filter->get_int("internal_added") == 237 && QString::fromUtf8(filter->get("mlt_service")) == QLatin1String("volume")) {
+            return filter->get_double("level");
+        }
+    }
+    return 0.;
+}
+
+bool TrackModel::setVolume(double volume)
+{
+    QWriteLocker locker(&m_lock);
+    std::unique_ptr<Mlt::Filter> filter;
+    for (int i = 0; i < m_track->filter_count(); ++i) {
+        std::unique_ptr<Mlt::Filter> candidate(m_track->filter(i));
+        if (candidate->get_int("internal_added") == 237 && QString::fromUtf8(candidate->get("mlt_service")) == QLatin1String("volume")) {
+            filter = std::move(candidate);
+            break;
+        }
+    }
+    if (!filter) {
+        filter = std::make_unique<Mlt::Filter>(m_track->get_profile(), "volume");
+        if (!filter->is_valid()) {
+            return false;
+        }
+        filter->set("internal_added", 237);
+        m_track->attach(*filter);
+    }
+    filter->set("level", volume);
+    filter->set("disable", qFuzzyIsNull(volume) ? 1 : 0);
+    return true;
 }
 
 bool TrackModel::checkConsistency()

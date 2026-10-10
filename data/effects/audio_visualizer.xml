@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_audio_visualizer" id="audio_visualizer" type="video">
+    <name>Audio Visualizer</name>
+    <description>Edit this layer using Tool → Audio Visualizer. Spectra follow the analyzed audio; shorter video backgrounds loop without sound.</description>
+    <author>Kdenlive</author>
+    <parameter type="url" name="filename" default=""><name>Audio spectrum data</name></parameter>
+    <parameter type="url" name="resource" default=""><name>Background image or video</name></parameter>
+    <parameter type="url" name="filter.resource" default=""><name>Center image</name></parameter>
+    <parameter type="url" name="av.file" default=""><name>Extracted audio for captions</name></parameter>
+    <parameter type="fixed" name="settings" default="{}"/>
+</effect>

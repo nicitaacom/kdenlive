@@ -71,6 +71,9 @@ public:
     QModelIndex makeTrackIndexFromID(int trackId) const override;
     QModelIndex parent(const QModelIndex &index) const override;
     Q_INVOKABLE void setTrackProperty(int tid, const QString &name, const QString &value);
+    /** @brief Update mixer gain live; commit one undo command after a drag. */
+    Q_INVOKABLE bool setTrackVolume(int tid, double volume);
+    Q_INVOKABLE void commitTrackVolume(int tid, double previousVolume);
     /** @brief Enabled/disabled a track's effect stack */
     Q_INVOKABLE void setTrackStackEnabled(int tid, bool enable);
     Q_INVOKABLE QVariant getTrackProperty(int tid, const QString &name) const;

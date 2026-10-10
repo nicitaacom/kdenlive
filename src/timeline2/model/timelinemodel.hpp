@@ -178,7 +178,8 @@ public:
         SelectedRole,       /// clip+composition only
         TrackActiveRole,    /// track only
         AudioRecordRole,    /// track only
-        EffectZonesRole     /// track only
+        EffectZonesRole,    /// track only
+        TrackVolumeRole     /// track only, mixer gain in dB
     };
 
     enum MoveResult { MoveSuccess, MoveErrorAudio, MoveErrorVideo, MoveErrorType, MoveErrorOther };

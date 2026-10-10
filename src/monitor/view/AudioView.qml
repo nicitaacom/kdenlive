@@ -166,7 +166,7 @@ Item {
         Rectangle {
             // Audio monitor background
             id: audioBg
-            color: Utils.mixColors(activePalette.base, K.KdenliveSettings.thumbColor1, 0.3)
+            color: audioThumb.isAudioClip ? "black" : Utils.mixColors(activePalette.base, K.KdenliveSettings.thumbColor1, 0.3)
             opacity: audioThumb.isAudioClip || K.KdenliveSettings.alwaysShowMonitorAudio ? 1 : 0.6
             anchors.fill: parent
         }
@@ -193,7 +193,7 @@ Item {
                         height: streamContainer.channelHeight - 2
                         anchors.right: streamContainer.right
                         anchors.left: streamContainer.left
-                        color: index %2 == 0 ? K.KdenliveSettings.thumbColor1 : K.KdenliveSettings.thumbColor2
+                        color: audioThumb.isAudioClip ? "black" : (index %2 == 0 ? K.KdenliveSettings.thumbColor1 : K.KdenliveSettings.thumbColor2)
                     }
                 }
                 // Highlight color for the selected wave part
@@ -201,7 +201,7 @@ Item {
                     x: audioThumb.monitorController.zoneIn * audioThumb.timeScale - (audioThumb.width / audioThumb.monitorController.timeZoomFactor * audioThumb.monitorController.timeZoomOffset)
                     width: (audioThumb.monitorController.zoneOut - audioThumb.monitorController.zoneIn) * audioThumb.timeScale
                     height: streamThumb.streamHeight - 2
-                    color:  Utils.mixColors(K.KdenliveSettings.thumbColor1, activePalette.highlight, 0.6)
+                    color: audioThumb.isAudioClip ? "black" : Utils.mixColors(K.KdenliveSettings.thumbColor1, activePalette.highlight, 0.6)
                     visible: audioThumb.monitorController.zoneOut > audioThumb.monitorController.zoneIn
                 }
                 K.TimelineWaveform {
@@ -219,10 +219,10 @@ Item {
                     scaleFactor: audioThumb.width / aClipDuration / audioThumb.monitorController.timeZoomFactor
                     waveInPoint: waveform.aClipDuration * audioThumb.monitorController.timeZoomOffset
                     waveOutPoint: waveform.aClipDuration * (audioThumb.monitorController.timeZoomOffset + audioThumb.monitorController.timeZoomFactor)
-                    fgColorEven: "#00000000" //K.KdenliveSettings.thumbColor1
-                    fgColorOdd: "#00000000" //K.KdenliveSettings.thumbColor2
-                    bgColorEven: audioBg.color //"#00000000"
-                    bgColorOdd: audioBg.color //"#00000000"
+                    fgColorEven: audioThumb.isAudioClip ? "white" : "#00000000"
+                    fgColorOdd: audioThumb.isAudioClip ? "white" : "#00000000"
+                    bgColorEven: audioThumb.isAudioClip ? "#00000000" : audioBg.color
+                    bgColorOdd: audioThumb.isAudioClip ? "#00000000" : audioBg.color
                     Repeater {
                         id: centerLinesContainer
                         model: streamContainer.channelsInStream

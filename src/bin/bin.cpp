@@ -92,6 +92,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <QVBoxLayout>
 #include <QtConcurrent/QtConcurrentRun>
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -1455,14 +1456,41 @@ Bin::Bin(std::shared_ptr<ProjectItemModel> model, QWidget *parent, bool isMainBi
     m_searchLine->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
     m_searchLine->setFont(QFontDatabase::systemFont(QFontDatabase::SmallestReadableFont));
     // m_searchLine->setClearButtonEnabled(true);
-    m_searchLine->setPlaceholderText(i18n("Search…"));
+    m_searchLine->setPlaceholderText(i18n("Search clips and tools…"));
+    m_searchLine->setToolTip(i18n("Search project clips or open tools such as Audio Visualizer."));
     m_searchLine->setFocusPolicy(Qt::ClickFocus);
     m_searchLine->setAccessibleName(i18n("Bin Search"));
     QAction *findAction = KStandardAction::find(m_searchLine, SLOT(setFocus()), this);
     addAction(findAction);
     findAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 
-    connect(m_searchLine, &QLineEdit::textChanged, this, [this](const QString &str) {
+    auto *visualizerResult = new QPushButton(i18n("Audio Visualizer…\nCreate a video layer from audio"), this);
+    visualizerResult->setObjectName(QStringLiteral("audioVisualizerSearchResult"));
+    visualizerResult->setAccessibleName(i18n("Open Audio Visualizer"));
+    visualizerResult->setIcon(QIcon::fromTheme(QStringLiteral("audio-x-generic")));
+    visualizerResult->setIconSize(QSize(24, 24));
+    visualizerResult->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    visualizerResult->setToolTip(i18n("Select an audio clip on the timeline to create a visualization, or select a visualizer layer to edit it."));
+    visualizerResult->setStyleSheet(QStringLiteral(
+        "QPushButton#audioVisualizerSearchResult { margin: 8px; padding: 12px; text-align: left; "
+        "background: #171e29; color: #eaf0f7; border: 1px solid #344050; border-radius: 8px; }"
+        "QPushButton#audioVisualizerSearchResult:hover, QPushButton#audioVisualizerSearchResult:focus { border-color: #67edcf; }"));
+    m_layout->addWidget(visualizerResult);
+    visualizerResult->hide();
+    connect(visualizerResult, &QPushButton::clicked, this, [] {
+        if (auto *action = pCore->window()->actionCollection()->action(QStringLiteral("audio_visualizer"))) action->trigger();
+    });
+    connect(m_searchLine, &QLineEdit::returnPressed, visualizerResult, [visualizerResult] {
+        if (visualizerResult->isVisible()) visualizerResult->click();
+    });
+    connect(m_searchLine, &QLineEdit::textChanged, this, [this, visualizerResult](const QString &str) {
+        const QString keywords = i18nc("Search keywords for the Audio Visualizer tool", "Audio Visualizer spectrum visualization") +
+                                 QStringLiteral(" audio visualizer visualiser spectrum visualization visualisation");
+        const QStringList terms = str.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        const bool matchesTool = !terms.isEmpty() && std::all_of(terms.begin(), terms.end(), [&keywords](const QString &term) {
+            return keywords.contains(term, Qt::CaseInsensitive);
+        });
+        visualizerResult->setVisible(matchesTool);
         m_proxyModel->slotSetSearchString(str);
         if (str.isEmpty()) {
             // focus last selected item when clearing search line
@@ -3440,7 +3468,8 @@ void Bin::slotInitView(QAction *action)
     m_itemView->setModel(m_proxyModel.get());
     m_itemView->setSelectionModel(m_proxyModel->selectionModel());
     m_proxyModel->setDynamicSortFilter(true);
-    m_layout->insertWidget(2, m_itemView);
+    // Toolbar, tags and the matching tool result precede the clip view.
+    m_layout->insertWidget(3, m_itemView);
     // Reset drag type to normal
     m_itemModel->setDragType(PlaylistState::Disabled);
 

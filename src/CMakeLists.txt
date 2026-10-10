@@ -71,6 +71,9 @@ add_subdirectory(layouts)
 
 ## toplevel source code files
 list(APPEND kdenlive_SRCS
+    audiovisualizer/spectrum.cpp
+    audiovisualizer/visualizerdialog.cpp
+    audiovisualizer/captionclient.cpp
     core.cpp
     definitions.cpp
     mainwindow.cpp

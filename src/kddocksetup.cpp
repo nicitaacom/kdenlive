@@ -8,10 +8,156 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "core.h"
 #include "kdenlivesettings.h"
 
+#include <kddockwidgets/qtwidgets/views/DockWidget.h>
+
+#include <QActionEvent>
+#include <QLayout>
+#include <QMenu>
 #include <QPainter>
 #include <QProxyStyle>
 #include <QStyleFactory>
 #include <QTabBar>
+#include <QTimer>
+
+DockMenuBar::DockMenuBar(QMenuBar *source, QWidget *dockWindow, QWidget *window)
+    : QObject(window)
+    , m_source(source)
+    , m_dockWindow(dockWindow)
+    , m_window(window)
+{
+    source->setNativeMenuBar(false);
+    qApp->installEventFilter(this);
+    updateDock();
+}
+
+void DockMenuBar::attachMenu(QAction *action)
+{
+    if (QMenu *menu = action->menu()) {
+        // The XMLGUI menu bar remains the action container and visibility setting,
+        // but only this dock menu bar handles keyboard navigation. Keep popups
+        // owned by the window so disabling the source does not disable its menus.
+        if (menu->parentWidget() == m_source) {
+            const bool explicitlyDisabled = menu->testAttribute(Qt::WA_ForceDisabled);
+            menu->setParent(m_window, menu->windowFlags());
+            menu->setEnabled(!explicitlyDisabled);
+        }
+    }
+}
+
+void DockMenuBar::scheduleUpdate()
+{
+    if (!m_updatePending) {
+        m_updatePending = true;
+        QTimer::singleShot(0, this, [this]() {
+            m_updatePending = false;
+            updateDock();
+        });
+    }
+}
+
+void DockMenuBar::updateDock()
+{
+    if (!m_bar) {
+        // Layout restoration deletes dock contents. Recreate the presentation
+        // while XMLGUI keeps the shared actions and menus owned by the window.
+        m_bar = new QMenuBar(m_window);
+        m_bar->setObjectName(QStringLiteral("dockMenuBar"));
+        m_bar->setNativeMenuBar(false);
+        // The dock width determines which menus fit; QMenuBar provides overflow.
+        m_bar->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        m_bar->addActions(m_source->actions());
+    }
+    KDDockWidgets::QtWidgets::Group *host = nullptr;
+    QPoint hostPosition;
+    for (auto group : m_dockWindow->findChildren<KDDockWidgets::QtWidgets::Group *>()) {
+        if (!group->isVisible() || !group->group()->isInMainWindow()) {
+            continue;
+        }
+        bool previewOrTimeline = false;
+        for (auto dock : group->group()->dockWidgets()) {
+            const QString name = dock->uniqueName();
+            if (name == QLatin1String("clipmonitor") || name == QLatin1String("projectmonitor") || name == QLatin1String("timeline")) {
+                previewOrTimeline = true;
+                break;
+            }
+        }
+        if (previewOrTimeline) {
+            continue;
+        }
+        const QPoint position = group->QWidget::mapTo(m_dockWindow, QPoint(0, 0));
+        if (!host || position.x() < hostPosition.x() || (position.x() == hostPosition.x() && position.y() < hostPosition.y())) {
+            host = group;
+            hostPosition = position;
+        }
+    }
+
+    if (host != m_host) {
+        if (m_host && m_host->layout()) {
+            m_host->layout()->setMenuBar(nullptr);
+        }
+        m_bar->setParent(m_window);
+        m_host = host;
+        if (host) {
+            host->layout()->setMenuBar(m_bar);
+            // The controller survives the group; its menu bar is recreated after
+            // the docking library has finished destroying the old layout.
+            connect(host, &QObject::destroyed, this, [this, host]() {
+                if (!m_host || m_host == host) {
+                    m_host.clear();
+                    scheduleUpdate();
+                }
+            });
+        }
+    }
+
+    if (host) {
+        for (auto action : m_bar->actions()) {
+            attachMenu(action);
+        }
+        m_source->setFixedHeight(0);
+        m_source->setEnabled(false);
+        m_bar->setVisible(!m_source->isHidden());
+    } else {
+        // A layout consisting only of monitors/timeline has no left panel.
+        m_source->setMinimumHeight(0);
+        m_source->setMaximumHeight(QWIDGETSIZE_MAX);
+        m_source->setEnabled(true);
+        m_bar->hide();
+    }
+}
+
+bool DockMenuBar::eventFilter(QObject *object, QEvent *event)
+{
+    if (object == m_source) {
+        if (event->type() == QEvent::ActionAdded) {
+            auto actionEvent = static_cast<QActionEvent *>(event);
+            if (m_bar) {
+                m_bar->insertAction(actionEvent->before(), actionEvent->action());
+            }
+            attachMenu(actionEvent->action());
+        } else if (event->type() == QEvent::ActionRemoved) {
+            if (m_bar) {
+                m_bar->removeAction(static_cast<QActionEvent *>(event)->action());
+            }
+        } else if (event->type() == QEvent::Show || event->type() == QEvent::Hide) {
+            if (m_bar) {
+                m_bar->setVisible(m_host && !m_source->isHidden());
+            }
+        }
+    }
+    switch (event->type()) {
+    case QEvent::Show:
+    case QEvent::Hide:
+    case QEvent::ParentChange:
+        if (qobject_cast<KDDockWidgets::QtWidgets::Group *>(object) || qobject_cast<KDDockWidgets::QtWidgets::DockWidget *>(object)) {
+            scheduleUpdate();
+        }
+        break;
+    default:
+        break;
+    }
+    return QObject::eventFilter(object, event);
+}
 
 class KdenliveDockTabBar : public KDDockWidgets::QtWidgets::TabBar
 {
@@ -70,6 +216,11 @@ public:
     explicit KdenliveDockGroup(KDDockWidgets::Core::Group *controller, KDDockWidgets::Core::View *parent = nullptr)
         : KDDockWidgets::QtWidgets::Group(controller, KDDockWidgets::QtCommon::View_qt::asQWidget(parent))
     {
+    }
+    int nonContentsHeight() const override
+    {
+        const auto menu = layout()->menuBar();
+        return KDDockWidgets::QtWidgets::Group::nonContentsHeight() + (menu && !menu->isHidden() ? menu->height() : 0);
     }
     void paintEvent(QPaintEvent *) override
     {

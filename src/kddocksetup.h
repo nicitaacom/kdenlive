@@ -4,7 +4,9 @@
 SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 */
 
+#include <QMenuBar>
 #include <QPainter>
+#include <QPointer>
 
 #include <kddockwidgets/Config.h>
 #include <kddockwidgets/core/Group.h>
@@ -18,6 +20,28 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include <kddockwidgets/qtwidgets/views/Stack.h>
 #include <kddockwidgets/qtwidgets/views/TabBar.h>
 #include <kddockwidgets/qtwidgets/views/TitleBar.h>
+
+/** Keep the window menus above the left dock without reserving space above monitors. */
+class DockMenuBar : public QObject
+{
+public:
+    DockMenuBar(QMenuBar *source, QWidget *dockWindow, QWidget *window);
+
+protected:
+    bool eventFilter(QObject *object, QEvent *event) override;
+
+private:
+    void updateDock();
+    void scheduleUpdate();
+    void attachMenu(QAction *action);
+
+    QMenuBar *const m_source;
+    QPointer<QMenuBar> m_bar;
+    QWidget *const m_dockWindow;
+    QWidget *const m_window;
+    QPointer<QWidget> m_host;
+    bool m_updatePending{false};
+};
 
 class CustomWidgetFactory : public KDDockWidgets::QtWidgets::ViewFactory
 {

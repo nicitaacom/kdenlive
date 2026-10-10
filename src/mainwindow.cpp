@@ -1033,6 +1033,7 @@ void MainWindow::finishUiSetup()
     setAutoSaveSettings();
     applyPreviewFocusedChrome();
     QObject::disconnect(pCore.get(), &Core::GUISetupDone, this, nullptr);
+    new DockMenuBar(menuBar(), mainDockWindow, this);
     // This should connect only after splash is done
     connect(pCore.get(), &Core::loadingMessageNewStage, this, [&](const QString &message, int max = -1) {
         if (max > -1) {

@@ -125,29 +125,46 @@ void MonitorManager::refreshProjectRange(QPair<int, int> range, bool forceRefres
             m_projectMonitor->refreshMonitorIfActive();
         }
     }
-    if (m_compactTimelinePreview && m_clipMonitor->activeClipId().isEmpty() && m_clipMonitor->position() >= range.first &&
-        m_clipMonitor->position() <= range.second) {
-        // Effect edits may replace the producer used by the timeline. A
-        // refresh of the old Clip Monitor producer can then keep displaying
-        // black even though the sequence exports correctly.
-        auto *timeline = pCore->window()->getCurrentTimeline();
-        if (timeline && timeline->controller() && timeline->model()) {
-            m_clipMonitor->setProducer(timeline->model()->uuid(), timeline->model()->producer(), m_clipMonitor->position());
-            m_clipMonitor->adjustRulerSize(qMax(0, timeline->controller()->duration() - 1));
-        }
+    if (projectMonitorVisible() || !clipMonitorVisible() || !m_clipMonitor || !pCore->window()) {
+        return;
     }
+    auto *timeline = pCore->window()->getCurrentTimeline();
+    if (!timeline || !timeline->controller() || !timeline->model() || !timeline->model()->producer()) {
+        return;
+    }
+    const int position = m_compactTimelinePreview ? m_clipMonitor->position() : pCore->getMonitorPosition();
+    if (position < range.first || position > range.second) {
+        return;
+    }
+    // The first drop never sets the compact-preview flag, so a refresh that
+    // only updates an already-bound clip monitor leaves the empty overlay up.
+    if (!m_compactTimelinePreview || m_compactTimelineUuid != timeline->model()->uuid() || !m_clipMonitor->activeClipId().isEmpty()) {
+        syncCompactClipPosition(position, true);
+        return;
+    }
+    // Effect edits may replace the producer used by the timeline. A
+    // refresh of the old Clip Monitor producer can then keep displaying
+    // black even though the sequence exports correctly.
+    m_clipMonitor->setProducer(timeline->model()->uuid(), timeline->model()->producer(), m_clipMonitor->position());
+    m_clipMonitor->adjustRulerSize(qMax(0, timeline->controller()->duration() - 1));
 }
 
 void MonitorManager::refreshProjectMonitor(bool directUpdate, bool slowUpdate)
 {
     m_projectMonitor->refreshMonitor(directUpdate, slowUpdate);
-    if (m_compactTimelinePreview && m_clipMonitor->activeClipId().isEmpty() && !projectMonitorVisible() && clipMonitorVisible()) {
-        auto *timeline = pCore->window()->getCurrentTimeline();
-        if (timeline && timeline->controller() && timeline->model()) {
-            m_clipMonitor->setProducer(timeline->model()->uuid(), timeline->model()->producer(), m_clipMonitor->position());
-            m_clipMonitor->adjustRulerSize(qMax(0, timeline->controller()->duration() - 1));
-        }
+    if (!m_clipMonitor || projectMonitorVisible() || !clipMonitorVisible() || !pCore->window()) {
+        return;
     }
+    auto *timeline = pCore->window()->getCurrentTimeline();
+    if (!timeline || !timeline->controller() || !timeline->model() || !timeline->model()->producer()) {
+        return;
+    }
+    if (!m_compactTimelinePreview || m_compactTimelineUuid != timeline->model()->uuid() || !m_clipMonitor->activeClipId().isEmpty()) {
+        syncCompactClipPosition(pCore->getMonitorPosition(), true);
+        return;
+    }
+    m_clipMonitor->setProducer(timeline->model()->uuid(), timeline->model()->producer(), m_clipMonitor->position());
+    m_clipMonitor->adjustRulerSize(qMax(0, timeline->controller()->duration() - 1));
 }
 
 void MonitorManager::refreshClipMonitor(bool directUpdate)

@@ -395,6 +395,19 @@ void TimelineTabs::buildClipMenu()
     m_timelineClipMenu->addAction(coll->action(QStringLiteral("cut_timeline_clip")));
 }
 
+void TimelineTabs::addTimelineMenuAction(QAction *action)
+{
+    if (!action) {
+        return;
+    }
+    if (m_timelineClipMenu) {
+        m_timelineClipMenu->addAction(action);
+    }
+    if (m_timelineMenu) {
+        m_timelineMenu->addAction(action);
+    }
+}
+
 void TimelineTabs::setTimelineMenu(QMenu *compositionMenu, QMenu *timelineMenu, QMenu *guideMenu, QMenu *timelineRulerMenu, QAction *editGuideAction,
                                    QMenu *headerMenu, QMenu *thumbsMenu, QMenu *subtitleClipMenu, QMenu *addClipMenu)
 {

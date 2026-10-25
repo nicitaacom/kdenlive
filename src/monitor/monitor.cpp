@@ -45,6 +45,8 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "transitions/transitionsrepository.hpp"
 
 #include "KLocalizedString"
+#include <QFile>
+#include <QLabel>
 #include <KActionMenu>
 #include <KColorScheme>
 #include <KDualAction>
@@ -3248,6 +3250,9 @@ void Monitor::setProducer(const QUuid uuid, std::shared_ptr<Mlt::Producer> produ
 
 void Monitor::updateEmptyPreviewState()
 {
+    if (!m_glMonitor) {
+        return;
+    }
     if (m_id == Kdenlive::ClipMonitor && m_controller) {
         m_glMonitor->setBlackBackgroundForEmptyPreview(!m_controller->hasVideo());
         return;
@@ -3256,12 +3261,18 @@ void Monitor::updateEmptyPreviewState()
         return;
     }
 
-    auto *timeline = pCore->window()->getCurrentTimeline();
-    if (m_id == Kdenlive::ClipMonitor && (!timeline || m_displayedUuid != timeline->model()->uuid())) {
+    auto *timeline = pCore->window() ? pCore->window()->getCurrentTimeline() : nullptr;
+    const bool timelineHasVideo = timeline && timeline->model() && timeline->model()->hasVideoClips();
+    if (m_id == Kdenlive::ClipMonitor && (!timeline || !timeline->model() || m_displayedUuid != timeline->model()->uuid())) {
+        // The clip monitor is still on the startup black producer, or on another
+        // sequence. Keep the empty message only when the timeline has no video.
+        // The queued bind installs the timeline producer and clears the message.
+        if (!timelineHasVideo) {
+            m_glMonitor->setBlackBackgroundForEmptyPreview(true);
+        }
         return;
     }
-    const bool hasVideo = timeline && timeline->model()->hasVideoClips();
-    m_glMonitor->setBlackBackgroundForEmptyPreview(!hasVideo);
+    m_glMonitor->setBlackBackgroundForEmptyPreview(!timelineHasVideo);
 }
 
 void Monitor::reconfigure()

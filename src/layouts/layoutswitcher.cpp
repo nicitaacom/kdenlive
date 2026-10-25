@@ -49,6 +49,8 @@ void LayoutSwitcher::setLayouts(const QList<QPair<QString, QString>> &layouts, c
         btn->setCheckable(true);
         btn->setFlat(true);
         btn->setFocusPolicy(Qt::NoFocus);
+        btn->setStyleSheet(QStringLiteral("QPushButton { padding: 1px 6px; margin: 0; }"));
+        btn->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
         m_buttonGroup->addButton(btn);
         m_layout->addWidget(btn);
         if (!currentLayout.isEmpty() && internalId == currentLayout) {

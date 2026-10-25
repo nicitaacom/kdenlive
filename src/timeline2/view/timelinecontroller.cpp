@@ -137,9 +137,24 @@ void TimelineController::setModel(std::shared_ptr<TimelineItemModel> model, bool
     connect(this, &TimelineController::videoTargetChanged, this, &TimelineController::updateVideoTarget);
     connect(this, &TimelineController::audioTargetChanged, this, &TimelineController::updateAudioTarget);
     connect(m_model.get(), &TimelineItemModel::requestMonitorRefresh, [&]() { pCore->refreshProjectMonitorOnce(true); });
-    if (auto *monitorManager = pCore->monitorManager(); monitorManager && monitorManager->projectMonitor()) {
-        connect(m_model.get(), &TimelineModel::timelineContentChanged, monitorManager->projectMonitor(), &Monitor::updateEmptyPreviewState);
-        connect(m_model.get(), &TimelineModel::timelineContentChanged, monitorManager->clipMonitor(), &Monitor::updateEmptyPreviewState);
+    // Clip insertion emits this while the track write lock is held. Binding the
+    // monitor directly from that signal calls back into the timeline model.
+    if (pCore->monitorManager()) {
+        connect(m_model.get(), &TimelineModel::timelineContentChanged, this, [this]() {
+            auto *monitorManager = pCore->monitorManager();
+            if (!monitorManager) {
+                return;
+            }
+            if (monitorManager->projectMonitor()) {
+                monitorManager->projectMonitor()->updateEmptyPreviewState();
+            }
+            if (monitorManager->clipMonitor()) {
+                monitorManager->clipMonitor()->updateEmptyPreviewState();
+            }
+            if (!monitorManager->projectMonitorVisible() && monitorManager->clipMonitorVisible()) {
+                monitorManager->syncCompactClipPosition(pCore->getMonitorPosition());
+            }
+        }, Qt::QueuedConnection);
     }
     connect(m_model.get(), &TimelineModel::audioTargetChanged, this, &TimelineController::updateAudioTarget);
     connect(m_model.get(), &TimelineModel::durationUpdated, this, &TimelineController::checkDuration);

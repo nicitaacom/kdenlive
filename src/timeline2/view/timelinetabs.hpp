@@ -57,6 +57,8 @@ public:
     void updateWindowTitle();
     /** @brief Build the timeline clip menu with dynamic actions. */
     void buildClipMenu();
+    /** @brief Add an action to the clip menu and the timeline background menu before timelines copy them. */
+    void addTimelineMenuAction(QAction *action);
 
 protected:
     /** @brief Helper function to connect a timeline's signals/slots*/

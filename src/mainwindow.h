@@ -232,6 +232,7 @@ protected:
 
     /** @brief Stops the active monitor when the window gets hidden. */
     void hideEvent(QHideEvent *e) override;
+    void showEvent(QShowEvent *event) override;
 
     /** @brief Saves the file and the window properties when saving the session. */
     void saveProperties(KConfigGroup &config) override;
@@ -246,6 +247,8 @@ private:
     void setupActions();
     /** @brief Keep the preview-focused workspace free of redundant toolbar controls. */
     void applyPreviewFocusedChrome();
+    void hidePreviewChromeToolbars();
+    void updateRamPreviewNotice();
     /** @brief Rebuild the dock menu according to existing dock widgets. */
     void updateDockMenu();
     /** @brief Update the audio thumbnails action icon based on current zoom and toggle state */
@@ -350,6 +353,7 @@ private:
     TimelineContainer *m_timelineToolBarContainer;
     QWidget *m_timelineToolBarSeparator{nullptr};
     QLabel *m_trimLabel;
+    QLabel *m_ramStatusLabel{nullptr};
     QActionGroup *m_scaleGroup;
     ToolType::ProjectTool m_activeTool;
     /** @brief Store latest mouse position in timeline. */

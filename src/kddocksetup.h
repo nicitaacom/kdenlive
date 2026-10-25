@@ -26,6 +26,7 @@ class DockMenuBar : public QObject
 {
 public:
     DockMenuBar(QMenuBar *source, QWidget *dockWindow, QWidget *window);
+    void setAccessory(QWidget *accessory);
 
 protected:
     bool eventFilter(QObject *object, QEvent *event) override;
@@ -34,13 +35,18 @@ private:
     void updateDock();
     void scheduleUpdate();
     void attachMenu(QAction *action);
+    void placeAccessory(QMenuBar *menu);
+    void detachAccessory();
 
     QMenuBar *const m_source;
     QPointer<QMenuBar> m_bar;
     QWidget *const m_dockWindow;
     QWidget *const m_window;
     QPointer<QWidget> m_host;
+    QPointer<QWidget> m_accessory;
     bool m_updatePending{false};
+    bool m_inUpdate{false};
+    bool m_applied{false};
 };
 
 class CustomWidgetFactory : public KDDockWidgets::QtWidgets::ViewFactory

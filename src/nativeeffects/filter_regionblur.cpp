@@ -51,6 +51,17 @@ int getImage(mlt_frame frame, uint8_t **image, mlt_image_format *format, int *wi
             mlt_properties_pass_property(childProperties, properties, name);
         }
     }
+    // An untouched radius of 1 is one pixel, which reads as "no blur".
+    // Keyframed values contain '=' and are left alone.
+    const mlt_profile profile = mlt_service_profile(MLT_FILTER_SERVICE(filter));
+    const int visibleRadius = profile && profile->width > 0 ? std::max(8, profile->width / 40) : 8;
+    const char *radiusNames[] = {"hradius", "vradius", "hori", "vert"};
+    for (const char *name : radiusNames) {
+        const char *value = mlt_properties_get(childProperties, name);
+        if (value && std::strcmp(value, "1") == 0) {
+            mlt_properties_set_int(childProperties, name, visibleRadius);
+        }
+    }
     // Render on an independent frame so blur kernels cannot modify pixels outside
     // the area, or the alpha channel of the source frame, in place.
     mlt_frame blurredFrame = mlt_frame_clone_image(frame, 1);
@@ -86,8 +97,15 @@ int getImage(mlt_frame frame, uint8_t **image, mlt_image_format *format, int *wi
     if (!mlt_properties_get_int(properties, "region_full_frame")) {
         const int position = mlt_filter_get_position(filter, frame) + mlt_filter_get_in(filter);
         const int length = mlt_filter_get_length2(filter, frame) + mlt_filter_get_in(filter);
-        const mlt_rect rect = mlt_properties_anim_get_rect(properties, "region_rect", position, length);
-        const mlt_profile profile = mlt_service_profile(MLT_FILTER_SERVICE(filter));
+        const char *rectValue = mlt_properties_get(properties, "region_rect");
+        mlt_rect rect = mlt_properties_anim_get_rect(properties, "region_rect", position, length);
+        // MLT returns percentages as fractions of the profile. Pixel rects stay as stored.
+        if (rectValue && std::strchr(rectValue, '%') && profile && profile->width > 0 && profile->height > 0) {
+            rect.x *= profile->width;
+            rect.w *= profile->width;
+            rect.y *= profile->height;
+            rect.h *= profile->height;
+        }
         const double scaleX = profile && profile->width > 0 ? static_cast<double>(*width) / profile->width : 1.0;
         const double scaleY = profile && profile->height > 0 ? static_cast<double>(*height) / profile->height : 1.0;
         if (std::isfinite(rect.x) && std::isfinite(rect.y) && std::isfinite(rect.w) && std::isfinite(rect.h) && rect.w > 0 && rect.h > 0) {

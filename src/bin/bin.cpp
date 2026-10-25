@@ -1778,7 +1778,7 @@ Bin::Bin(std::shared_ptr<ProjectItemModel> model, QWidget *parent, bool isMainBi
     }
     // Hack, create toolbar spacer
     QWidget *spacer = new QWidget();
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_toolbar->addWidget(spacer);
 
     // Add filter and search line
@@ -3470,6 +3470,7 @@ void Bin::slotInitView(QAction *action)
     m_proxyModel->setDynamicSortFilter(true);
     // Toolbar, tags and the matching tool result precede the clip view.
     m_layout->insertWidget(3, m_itemView);
+    m_layout->setStretchFactor(m_itemView, 1);
     // Reset drag type to normal
     m_itemModel->setDragType(PlaylistState::Disabled);
 

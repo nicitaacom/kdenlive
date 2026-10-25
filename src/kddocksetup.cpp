@@ -46,17 +46,67 @@ void DockMenuBar::attachMenu(QAction *action)
 
 void DockMenuBar::scheduleUpdate()
 {
-    if (!m_updatePending) {
-        m_updatePending = true;
-        QTimer::singleShot(0, this, [this]() {
-            m_updatePending = false;
-            updateDock();
-        });
+    if (m_inUpdate || m_updatePending) {
+        return;
+    }
+    m_updatePending = true;
+    QTimer::singleShot(200, this, [this]() {
+        m_updatePending = false;
+        updateDock();
+    });
+}
+
+void DockMenuBar::setAccessory(QWidget *accessory)
+{
+    m_accessory = accessory;
+    m_applied = false;
+    scheduleUpdate();
+}
+
+void DockMenuBar::detachAccessory()
+{
+    if (!m_accessory || !m_window) {
+        return;
+    }
+    if (m_accessory->parentWidget() != m_window) {
+        m_accessory->setParent(m_window);
+        m_accessory->hide();
+    }
+}
+
+void DockMenuBar::placeAccessory(QMenuBar *menu)
+{
+    if (!m_accessory || !menu) {
+        return;
+    }
+    QMenuBar *bars[2] = {m_source, m_bar.data()};
+    for (QMenuBar *bar : bars) {
+        if (bar && bar != menu && bar->cornerWidget(Qt::TopRightCorner) == m_accessory) {
+            bar->setCornerWidget(nullptr, Qt::TopRightCorner);
+        }
+    }
+    if (menu->cornerWidget(Qt::TopRightCorner) != m_accessory) {
+        menu->setCornerWidget(m_accessory, Qt::TopRightCorner);
+    }
+    if (!m_accessory->isVisible()) {
+        m_accessory->show();
     }
 }
 
 void DockMenuBar::updateDock()
 {
+    if (m_inUpdate) {
+        return;
+    }
+    // A visible host already has the menu. Searching every dock on each repaint
+    // is what made the overflow arrow blink and stall the window.
+    if (m_applied && m_host && m_host->isVisible()) {
+        return;
+    }
+    m_inUpdate = true;
+    if (!m_accessory && m_window) {
+        m_accessory = m_window->findChild<QWidget *>(QStringLiteral("layoutMenuAccessory"));
+    }
     if (!m_bar) {
         // Layout restoration deletes dock contents. Recreate the presentation
         // while XMLGUI keeps the shared actions and menus owned by the window.
@@ -91,7 +141,15 @@ void DockMenuBar::updateDock()
         }
     }
 
+    QMenuBar *accessoryMenu = host ? static_cast<QMenuBar *>(m_bar.data()) : m_source;
+    const bool accessoryReady = !m_accessory || (accessoryMenu && accessoryMenu->cornerWidget(Qt::TopRightCorner) == m_accessory && m_accessory->isVisible());
+    if (m_applied && host == m_host && accessoryReady) {
+        m_inUpdate = false;
+        return;
+    }
+
     if (host != m_host) {
+        detachAccessory();
         if (m_host && m_host->layout()) {
             m_host->layout()->setMenuBar(nullptr);
         }
@@ -102,8 +160,10 @@ void DockMenuBar::updateDock()
             // The controller survives the group; its menu bar is recreated after
             // the docking library has finished destroying the old layout.
             connect(host, &QObject::destroyed, this, [this, host]() {
+                detachAccessory();
                 if (!m_host || m_host == host) {
                     m_host.clear();
+                    m_applied = false;
                     scheduleUpdate();
                 }
             });
@@ -114,20 +174,37 @@ void DockMenuBar::updateDock()
         for (auto action : m_bar->actions()) {
             attachMenu(action);
         }
-        m_source->setFixedHeight(0);
+        if (m_source->maximumHeight() != 0) {
+            m_source->setFixedHeight(0);
+        }
         m_source->setEnabled(false);
-        m_bar->setVisible(!m_source->isHidden());
+        const bool wantVisible = !m_source->isHidden();
+        if (m_bar->isVisible() != wantVisible) {
+            m_bar->setVisible(wantVisible);
+        }
     } else {
-        // A layout consisting only of monitors/timeline has no left panel.
+        // Monitors and the timeline are not menu hosts. Keep the window menu.
         m_source->setMinimumHeight(0);
         m_source->setMaximumHeight(QWIDGETSIZE_MAX);
         m_source->setEnabled(true);
-        m_bar->hide();
+        if (!m_bar->isHidden()) {
+            m_bar->hide();
+        }
     }
+    placeAccessory(accessoryMenu);
+    m_applied = true;
+    m_inUpdate = false;
 }
 
 bool DockMenuBar::eventFilter(QObject *object, QEvent *event)
 {
+    if (event->type() == QEvent::Destroy && (object == m_bar || object == m_host)) {
+        detachAccessory();
+        m_applied = false;
+    }
+    if (m_inUpdate || object == m_bar || object == m_accessory) {
+        return QObject::eventFilter(object, event);
+    }
     if (object == m_source) {
         if (event->type() == QEvent::ActionAdded) {
             auto actionEvent = static_cast<QActionEvent *>(event);
@@ -148,8 +225,16 @@ bool DockMenuBar::eventFilter(QObject *object, QEvent *event)
     switch (event->type()) {
     case QEvent::Show:
     case QEvent::Hide:
+        if (m_applied && m_host && m_host->isVisible() && object != m_host) {
+            break;
+        }
+        if (qobject_cast<KDDockWidgets::QtWidgets::Group *>(object)) {
+            scheduleUpdate();
+        }
+        break;
     case QEvent::ParentChange:
         if (qobject_cast<KDDockWidgets::QtWidgets::Group *>(object) || qobject_cast<KDDockWidgets::QtWidgets::DockWidget *>(object)) {
+            m_applied = false;
             scheduleUpdate();
         }
         break;
@@ -216,11 +301,6 @@ public:
     explicit KdenliveDockGroup(KDDockWidgets::Core::Group *controller, KDDockWidgets::Core::View *parent = nullptr)
         : KDDockWidgets::QtWidgets::Group(controller, KDDockWidgets::QtCommon::View_qt::asQWidget(parent))
     {
-    }
-    int nonContentsHeight() const override
-    {
-        const auto menu = layout()->menuBar();
-        return KDDockWidgets::QtWidgets::Group::nonContentsHeight() + (menu && !menu->isHidden() ? menu->height() : 0);
     }
     void paintEvent(QPaintEvent *) override
     {

@@ -70,12 +70,14 @@ LayoutManagement::LayoutManagement(QObject *parent)
     // Create layout switcher for the menu bar
     MainWindow *main = pCore->window();
     m_container = new QWidget(main);
+    m_container->setObjectName(QStringLiteral("layoutMenuAccessory"));
+    m_container->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
     m_layoutSwitcher = new LayoutSwitcher(m_container);
     connect(m_layoutSwitcher, &LayoutSwitcher::layoutSelected, this,
             static_cast<bool (LayoutManagement::*)(const QString &)>(&LayoutManagement::slotLoadLayoutById));
 
     auto *l1 = new QHBoxLayout;
-    l1->addStretch();
+    l1->setSizeConstraint(QLayout::SetFixedSize);
     // space between the corner widget and the menu bar
     l1->setContentsMargins(6, 0, 0, 0);
     // space between the autosave label and the layout switcher
@@ -131,6 +133,9 @@ LayoutManagement::LayoutManagement(QObject *parent)
 
 void LayoutManagement::startAutoSave()
 {
+    if (!m_autosaveContainer || !m_autosaveLabel) {
+        return;
+    }
     m_autosaveContainer->setAutoFillBackground(true);
     m_autosaveLabel->show();
     m_autosaveDisplayTimer.start();
@@ -138,6 +143,9 @@ void LayoutManagement::startAutoSave()
 
 void LayoutManagement::hideAutoSave()
 {
+    if (!m_autosaveContainer || !m_autosaveLabel) {
+        return;
+    }
     m_autosaveLabel->hide();
     m_autosaveContainer->setAutoFillBackground(false);
 }
@@ -391,6 +399,9 @@ void LayoutManagement::slotManageLayouts()
 
 void LayoutManagement::slotUpdatePalette()
 {
+    if (!m_switcherContainer || !m_autosaveContainer || !m_autosaveLabel) {
+        return;
+    }
     MainWindow *main = pCore->window();
     QPalette pal = m_switcherContainer->palette();
     KColorScheme scheme(main->palette().currentColorGroup(), KColorScheme::Button);
@@ -410,6 +421,9 @@ void LayoutManagement::slotUpdatePalette()
 
 void LayoutManagement::updateAutosaveIcon()
 {
+    if (!m_autosaveLabel) {
+        return;
+    }
     MainWindow *main = pCore->window();
     qreal dpr = main->devicePixelRatioF();
     int iconSize = main->style()->pixelMetric(QStyle::PM_SmallIconSize);

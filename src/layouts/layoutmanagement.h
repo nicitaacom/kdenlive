@@ -10,6 +10,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "layoutcollection.h"
 #include <QMap>
 #include <QObject>
+#include <QPointer>
 #include <QTimer>
 
 class KSelectAction;
@@ -57,11 +58,11 @@ private:
     void applyMonitorPresentation(bool compact);
     /** @brief Updates the autosave icon with highlight color. */
     void updateAutosaveIcon();
-    QWidget *m_container;
-    QWidget *m_autosaveContainer;
-    QWidget *m_switcherContainer;
-    LayoutSwitcher *m_layoutSwitcher;
-    QLabel *m_autosaveLabel;
+    QPointer<QWidget> m_container;
+    QPointer<QWidget> m_autosaveContainer;
+    QPointer<QWidget> m_switcherContainer;
+    QPointer<LayoutSwitcher> m_layoutSwitcher;
+    QPointer<QLabel> m_autosaveLabel;
     QTimer m_autosaveDisplayTimer;
     KSelectAction *m_loadLayout;
     QList<QAction *> m_layoutActions;

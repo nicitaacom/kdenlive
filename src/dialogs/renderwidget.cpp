@@ -233,6 +233,29 @@ void RenderViewDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
             }
         }
         painter->restore();
+    } else if (index.column() == 0 && (option.state & QStyle::State_Selected)) {
+        painter->save();
+        QStyleOptionViewItem opt(option);
+        QStyle *style = opt.widget ? opt.widget->style() : QApplication::style();
+        painter->fillRect(option.rect, option.palette.highlight());
+        const QIcon icon = index.data(Qt::DecorationRole).value<QIcon>();
+        if (!icon.isNull()) {
+            const QColor color = ColorContrast::bestTextColor({option.palette.highlight().color()});
+            const int iconSize = style->pixelMetric(QStyle::PM_SmallIconSize, &opt, opt.widget);
+            const QPixmap pixmap = icon.pixmap(iconSize, iconSize);
+            QPixmap tinted(pixmap.size());
+            tinted.fill(Qt::transparent);
+            tinted.setDevicePixelRatio(pixmap.devicePixelRatio());
+            QPainter iconPainter(&tinted);
+            iconPainter.drawPixmap(0, 0, pixmap);
+            iconPainter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            iconPainter.fillRect(tinted.rect(), color);
+            iconPainter.end();
+            const QSize logicalSize(qRound(pixmap.width() / pixmap.devicePixelRatio()), qRound(pixmap.height() / pixmap.devicePixelRatio()));
+            const QRect iconRect = QStyle::alignedRect(opt.direction, Qt::AlignCenter, logicalSize, option.rect);
+            painter->drawPixmap(iconRect, tinted);
+        }
+        painter->restore();
     } else {
         QStyledItemDelegate::paint(painter, option, index);
     }

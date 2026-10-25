@@ -78,6 +78,10 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "widgets/progressbutton.h"
 #include "utils/colorcontrast.h"
 #include <config-kdenlive.h>
+#include <QFile>
+#include <QShowEvent>
+#include <QSignalBlocker>
+#include <QTimer>
 
 #ifdef USE_JOGSHUTTLE
 #include "jogshuttle/jogmanager.h"
@@ -1243,16 +1247,70 @@ void MainWindow::saveProperties(KConfigGroup &config)
     }
 }
 
-void MainWindow::applyPreviewFocusedChrome()
+namespace {
+qint64 availablePhysicalMemoryBytes()
 {
-    // Hide the main toolbar: Open remains in File (Ctrl+O), undo/redo remain in Edit
-    // (Ctrl+Z/Ctrl+Y), and the other commands remain available from the menus.
+#if defined(Q_OS_LINUX)
+    QFile memoryInfo(QStringLiteral("/proc/meminfo"));
+    if (memoryInfo.open(QIODevice::ReadOnly)) {
+        const QList<QByteArray> lines = memoryInfo.readAll().split('\n');
+        for (const QByteArray &line : lines) {
+            if (line.startsWith("MemAvailable:")) {
+                const QList<QByteArray> parts = line.mid(int(sizeof("MemAvailable:") - 1)).trimmed().split(' ');
+                if (!parts.isEmpty()) {
+                    return parts.first().toLongLong() * 1024;
+                }
+            }
+        }
+    }
+#endif
+    return 0;
+}
+
+QString memoryAmount(qint64 bytes)
+{
+    const double gigabytes = double(bytes) / (1024.0 * 1024.0 * 1024.0);
+    if (gigabytes >= 1.0) {
+        return QString::number(gigabytes, 'f', 1) + QStringLiteral(" GB");
+    }
+    return QString::number(bytes / (1024 * 1024)) + QStringLiteral(" MiB");
+}
+}
+
+void MainWindow::updateRamPreviewNotice()
+{
+    if (!m_ramStatusLabel) {
+        return;
+    }
+    const qint64 available = availablePhysicalMemoryBytes();
+    const int limitMB = KdenliveSettings::ramPreviewLimitMB();
+    if (available <= 0 || limitMB <= 0) {
+        m_ramStatusLabel->clear();
+        return;
+    }
+    const qint64 limitBytes = qint64(limitMB) * 1024 * 1024;
+    const QString text = i18n("%1 free · preview limit %2", memoryAmount(available), memoryAmount(limitBytes));
+    if (m_ramStatusLabel->text() != text) {
+        m_ramStatusLabel->setText(text);
+    }
+    const bool shortMemory = available < limitBytes;
+    const QString color = shortMemory ? QStringLiteral("palette(highlight)") : QStringLiteral("palette(window-text)");
+    const QString style = QStringLiteral("QLabel { color: %1; }").arg(color);
+    if (m_ramStatusLabel->styleSheet() != style) {
+        m_ramStatusLabel->setStyleSheet(style);
+    }
+}
+
+void MainWindow::hidePreviewChromeToolbars()
+{
+    const int smallIcon = style()->pixelMetric(QStyle::PM_SmallIconSize);
     QSet<QToolBar *> chromeToolbars;
     if (QToolBar *mainToolbar = toolBar()) {
         chromeToolbars.insert(mainToolbar);
     }
     for (QToolBar *toolbar : findChildren<QToolBar *>()) {
-        if (toolbar->objectName() == QLatin1String("mainToolBar") || toolbar->objectName() == QLatin1String("extraToolBar")) {
+        if (toolbar->objectName() == QLatin1String("mainToolBar") || toolbar->objectName() == QLatin1String("extraToolBar") ||
+            toolbar->objectName() == QLatin1String("timelineToolBar")) {
             chromeToolbars.insert(toolbar);
         }
     }
@@ -1260,6 +1318,9 @@ void MainWindow::applyPreviewFocusedChrome()
         chromeToolbars.insert(m_timelineToolBar);
     }
     for (QToolBar *toolbar : std::as_const(chromeToolbars)) {
+        toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        toolbar->setIconSize(QSize(smallIcon, smallIcon));
+        toolbar->setMaximumHeight(smallIcon + 6);
         if (!toolbar->property("previewFocusedHidden").toBool()) {
             toolbar->setProperty("previewFocusedHidden", true);
             connect(toolbar, &QToolBar::visibilityChanged, this, [toolbar](bool visible) {
@@ -1270,6 +1331,20 @@ void MainWindow::applyPreviewFocusedChrome()
         }
         toolbar->hide();
     }
+}
+
+void MainWindow::showEvent(QShowEvent *event)
+{
+    KXmlGuiWindow::showEvent(event);
+    QTimer::singleShot(0, this, [this]() { hidePreviewChromeToolbars(); });
+}
+
+void MainWindow::applyPreviewFocusedChrome()
+{
+    // Hide the main toolbar: Open remains in File (Ctrl+O), undo/redo remain in Edit
+    // (Ctrl+Z/Ctrl+Y), and the other commands remain available from the menus.
+    hidePreviewChromeToolbars();
+    QTimer::singleShot(0, this, [this]() { hidePreviewChromeToolbars(); });
 
     // Keep shared actions available in menus and shortcuts while removing their
     // redundant buttons from any remaining toolbars.
@@ -1802,11 +1877,20 @@ void MainWindow::setupActions()
     statusBar()->setMaximumHeight(2 * small);
     m_messageLabel = new StatusBarMessageLabel(this);
     m_messageLabel->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+    m_ramStatusLabel = new QLabel(this);
+    m_ramStatusLabel->setFont(QFontDatabase::systemFont(QFontDatabase::SmallestReadableFont));
+    m_ramStatusLabel->setToolTip(i18n("Free memory, and the RAM preview limit. Change the limit from Timeline → Set RAM Preview Limit, or Settings → Configure Kdenlive → Timeline."));
     connect(this, &MainWindow::displayMessage, m_messageLabel, &StatusBarMessageLabel::setMessage);
     connect(this, &MainWindow::displaySelectionMessage, m_messageLabel, &StatusBarMessageLabel::setSelectionMessage);
     connect(this, &MainWindow::displayProgressMessage, m_messageLabel, &StatusBarMessageLabel::setProgressMessage);
     statusBar()->addWidget(m_messageLabel, 10);
+    statusBar()->addPermanentWidget(m_ramStatusLabel);
     statusBar()->addPermanentWidget(toolbar);
+    auto *ramNoticeTimer = new QTimer(this);
+    ramNoticeTimer->setInterval(10000);
+    connect(ramNoticeTimer, &QTimer::timeout, this, &MainWindow::updateRamPreviewNotice);
+    ramNoticeTimer->start();
+    QTimer::singleShot(1500, this, [this]() { updateRamPreviewNotice(); });
     toolbar->setIconSize(QSize(small, small));
     toolbar->layout()->setContentsMargins(0, 0, 0, 0);
     statusBar()->setContentsMargins(0, 0, 0, 0);
@@ -1828,6 +1912,29 @@ void MainWindow::setupActions()
     addAction(QStringLiteral("automatic_transition"), m_buttonTimelineTags);
     addAction(QStringLiteral("show_video_thumbs"), m_buttonVideoThumbs);
     addAction(QStringLiteral("show_audio_thumbs"), m_buttonAudioThumbs);
+    QAction *waveformAction = new QAction(QIcon::fromTheme(waveformIconName), i18n("Show audio waveform"), this);
+    connect(waveformAction, &QAction::triggered, this, [this]() {
+        if (!KdenliveSettings::audiothumbnails()) {
+            KdenliveSettings::setAudiothumbnails(true);
+        }
+        m_buttonAudioThumbs->setChecked(true);
+        if (!KdenliveSettings::normalizechannels()) {
+            KdenliveSettings::setNormalizechannels(true);
+            const auto actions = findChildren<QAction *>();
+            for (QAction *action : actions) {
+                if (action->data().toString() == QLatin1String("normalize_channels")) {
+                    QSignalBlocker blocker(action);
+                    action->setChecked(true);
+                }
+            }
+        }
+        if (pCore->bin()) {
+            pCore->bin()->checkAudioThumbs();
+        }
+    });
+    if (m_timelineTabs) {
+        m_timelineTabs->addTimelineMenuAction(waveformAction);
+    }
     addAction(QStringLiteral("show_markers"), m_buttonShowMarkers);
     addAction(QStringLiteral("snap"), m_buttonSnap);
     addAction(QStringLiteral("hide_overlay"), m_buttonHideClipOverlays);

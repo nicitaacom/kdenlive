@@ -12,6 +12,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QFile>
+#include <QSet>
 #include <QStandardPaths>
 #include <QTextStream>
 
@@ -95,6 +96,14 @@ void EffectsRepository::initRegionBlurEffects()
         QDomElement source = parameter(QStringLiteral("fixed"), QStringLiteral("region_filter"), asset.second.mltId, QString());
         source.setAttribute(QStringLiteral("value"), asset.second.mltId);
         region.xml.appendChild(source);
+        const QSet<QString> radiusNames{QStringLiteral("hradius"), QStringLiteral("vradius"), QStringLiteral("hori"), QStringLiteral("vert")};
+        const QDomNodeList parameters = region.xml.elementsByTagName(QStringLiteral("parameter"));
+        for (int i = 0; i < parameters.count(); ++i) {
+            QDomElement element = parameters.at(i).toElement();
+            if (radiusNames.contains(element.attribute(QStringLiteral("name"))) && element.attribute(QStringLiteral("default")) == QLatin1String("1")) {
+                element.setAttribute(QStringLiteral("default"), QStringLiteral("20"));
+            }
+        }
         regionEffects.emplace(region.id, std::move(region));
     }
     m_assets.insert(regionEffects.begin(), regionEffects.end());

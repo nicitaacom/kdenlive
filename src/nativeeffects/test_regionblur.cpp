@@ -113,6 +113,8 @@ int main()
     mlt_properties_set_int(properties, "preserve_alpha", 0);
     const auto full = render(blur, input, width, height, 0);
     checkArea(input, render(area, input, width, height, 0), full, width, height, 24, 18, 40, 30);
+    mlt_properties_set(properties, "region_rect", "37.5% 37.5% 25% 25%");
+    checkArea(input, render(area, input, width, height, 0), full, width, height, 24, 18, 40, 30);
 
     // Region keyframes use source time, including clips trimmed away from zero.
     mlt_filter_set_in_and_out(area, 10, 30);

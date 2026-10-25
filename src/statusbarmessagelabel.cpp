@@ -19,6 +19,7 @@
 #include <KStatefulBrush>
 
 #include <QDialog>
+#include <QRegularExpression>
 #include <QDialogButtonBox>
 #include <QFontDatabase>
 #include <QHBoxLayout>
@@ -77,6 +78,8 @@ StatusBarMessageLabel::StatusBarMessageLabel(QWidget *parent)
     m_keyMap = new QLabel(this);
     m_keyMap->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_keyMap->setFont(QFontDatabase::systemFont(QFontDatabase::SmallestReadableFont));
+    m_keyMap->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_keyMap->setMinimumWidth(0);
     m_progress = new QProgressBar(this);
     m_progress->setFormat(i18nc("%p is the percent value, % is the percent sign", "%p%"));
     lay2->addWidget(m_selectionLabel);
@@ -110,8 +113,16 @@ void StatusBarMessageLabel::mousePressEvent(QMouseEvent *event)
 
 void StatusBarMessageLabel::setKeyMap(const QString &text)
 {
-    m_keyMap->setText(text);
     m_keymapText = text;
+    QString visible = text;
+    visible.remove(QRegularExpression(QStringLiteral("<[^>]+>")));
+    visible.replace(QLatin1Char('\n'), QLatin1Char(' '));
+    m_keyMap->setToolTip(visible);
+    const int room = qMax(0, width() - m_container->sizeHint().width() - 16);
+    const QString shown = room > 24 ? fontMetrics().elidedText(visible, Qt::ElideRight, room) : QString();
+    if (m_keyMap->text() != shown) {
+        m_keyMap->setText(shown);
+    }
 }
 
 void StatusBarMessageLabel::setTmpKeyMap(const QString &text)
@@ -329,6 +340,9 @@ void StatusBarMessageLabel::confirmErrorMessage()
 void StatusBarMessageLabel::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
+    if (!m_keymapText.isEmpty()) {
+        setKeyMap(m_keymapText);
+    }
 }
 
 void StatusBarMessageLabel::slotShowJobLog(const QString &text)

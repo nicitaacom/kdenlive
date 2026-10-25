@@ -57,6 +57,7 @@ mask_apply.xml
 mirror.xml
 motion_transform_blur.xml
 native_brightness_contrast.xml
+native_camera_raw.xml
 native_motion_vector_blur.xml
 native_spatial_blur.xml
 native_blur_motion.xml

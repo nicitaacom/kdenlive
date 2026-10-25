@@ -45,7 +45,7 @@ LayoutManagement::LayoutManagement(QObject *parent)
 {
     // Initialize layout categories in KDE action framework
     m_layoutCategory = new KActionCategory(i18n("Layouts"), pCore->window()->actionCollection());
-    m_loadLayout = new KSelectAction(i18n("Load Layout"), pCore->window()->actionCollection());
+    m_loadLayout = new KSelectAction(i18n("Layouts"), pCore->window()->actionCollection());
     pCore->window()->actionCollection()->setShortcutsConfigurable(m_loadLayout, false);
 
     // Required to enable user to add the load layout action to toolbar
@@ -193,8 +193,11 @@ void LayoutManagement::initializeLayouts()
         if (layout.internalId.isEmpty()) {
             load->setText(QString());
             load->setIcon(QIcon());
+            load->setCheckable(false);
         } else {
-            load->setText(i18n("Layout %1: %2", i + 1, layout.displayName));
+            load->setText(layout.displayName);
+            load->setCheckable(true);
+            load->setChecked(layout.internalId == m_currentLayoutId);
         }
 
         load->setData(layout.internalId);
@@ -255,6 +258,10 @@ bool LayoutManagement::slotLoadLayout(LayoutInfo layout, bool onlyIfNoPrevious)
     m_currentLayoutId = layout.internalId;
     m_firstLayoutLoaded = true;
     m_layoutSwitcher->setCurrentLayout(layout.internalId);
+    const QList<QAction *> layoutActions = m_loadLayout->actions();
+    for (QAction *layoutAction : layoutActions) {
+        layoutAction->setChecked(layoutAction->data().toString() == layout.internalId);
+    }
     if (!KdenliveSettings::showtitlebars()) {
         Q_EMIT pCore->hideBars(!KdenliveSettings::showtitlebars());
     }

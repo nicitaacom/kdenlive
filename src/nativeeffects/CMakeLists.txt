@@ -29,6 +29,7 @@ add_library(mltkdenlivenative MODULE
     filter_motionvector.cpp
     filter_spatialblur.cpp
     filter_regionblur.cpp
+    filter_cameraraw.cpp
     filter_blurmotion.cpp
     filter_magnify.cpp
     pinchwarp.cpp

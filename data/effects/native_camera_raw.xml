@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kpartgui>
+<effect xmlns="https://www.kdenlive.org" tag="kdenlive_camera_raw" id="kdenlive_camera_raw" type="video">
+    <name>Camera Raw</name>
+    <description>Adjust exposure, color, curves, texture, and noise. Use the Histogram scope while this effect is selected. Compare with original shows the clip before these controls.</description>
+    <author>Kdenlive</author>
+    <parameter type="constant" name="exposure" default="0" min="-4" max="4" decimals="2">
+        <name>Light — Exposure</name>
+    </parameter>
+    <parameter type="constant" name="contrast" default="0" min="-100" max="100" decimals="0">
+        <name>Light — Contrast</name>
+    </parameter>
+    <parameter type="constant" name="highlights" default="0" min="-100" max="100" decimals="0">
+        <name>Light — Highlights</name>
+    </parameter>
+    <parameter type="constant" name="shadows" default="0" min="-100" max="100" decimals="0">
+        <name>Light — Shadows</name>
+    </parameter>
+    <parameter type="constant" name="whites" default="0" min="-100" max="100" decimals="0">
+        <name>Light — Whites</name>
+    </parameter>
+    <parameter type="constant" name="blacks" default="0" min="-100" max="100" decimals="0">
+        <name>Light — Blacks</name>
+    </parameter>
+    <parameter type="constant" name="temperature" default="0" min="-100" max="100" decimals="0">
+        <name>Color — Temperature</name>
+    </parameter>
+    <parameter type="constant" name="tint" default="0" min="-100" max="100" decimals="0">
+        <name>Color — Tint</name>
+    </parameter>
+    <parameter type="constant" name="vibrance" default="0" min="-100" max="100" decimals="0">
+        <name>Color — Vibrance</name>
+    </parameter>
+    <parameter type="constant" name="saturation" default="0" min="-100" max="100" decimals="0">
+        <name>Color — Saturation</name>
+    </parameter>
+    <parameter type="constant" name="texture" default="0" min="-100" max="100" decimals="0">
+        <name>Effects — Texture</name>
+    </parameter>
+    <parameter type="constant" name="clarity" default="0" min="-100" max="100" decimals="0">
+        <name>Effects — Clarity</name>
+    </parameter>
+    <parameter type="constant" name="dehaze" default="0" min="-100" max="100" decimals="0">
+        <name>Effects — Dehaze</name>
+    </parameter>
+    <parameter type="av_curve" name="curve_master" default="" color="#CCCCCC">
+        <name>Curves — All</name>
+    </parameter>
+    <parameter type="av_curve" name="curve_r" default="" color="#FF4444">
+        <name>Curves — Red</name>
+    </parameter>
+    <parameter type="av_curve" name="curve_g" default="" color="#44CC44">
+        <name>Curves — Green</name>
+    </parameter>
+    <parameter type="av_curve" name="curve_b" default="" color="#4488FF">
+        <name>Curves — Blue</name>
+    </parameter>
+    <parameter type="constant" name="noise_reduction" default="0" min="0" max="100" decimals="0">
+        <name>Detail — Noise Reduction</name>
+    </parameter>
+    <parameter type="constant" name="color_noise_reduction" default="0" min="0" max="100" decimals="0">
+        <name>Detail — Color Noise Reduction</name>
+    </parameter>
+    <parameter type="bool" name="compare" default="0">
+        <name>Compare with original</name>
+    </parameter>
+</effect>

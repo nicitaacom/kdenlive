@@ -254,6 +254,8 @@ extern "C" mlt_filter createNativeBrightnessContrast(mlt_profile, mlt_service_ty
 extern "C" mlt_properties nativeBrightnessContrastMetadata(mlt_service_type, const char *, void *);
 extern "C" mlt_filter createNativeRegionBlur(mlt_profile, mlt_service_type, const char *, const void *);
 extern "C" mlt_properties nativeRegionBlurMetadata(mlt_service_type, const char *, void *);
+extern "C" mlt_filter createNativeCameraRaw(mlt_profile, mlt_service_type, const char *, const void *);
+extern "C" mlt_properties nativeCameraRawMetadata(mlt_service_type, const char *, void *);
 
 extern "C" mlt_filter createAudioVisualizer(mlt_profile, mlt_service_type, const char *, const void *);
 extern "C" mlt_properties audioVisualizerMetadata(mlt_service_type, const char *, void *);
@@ -264,6 +266,8 @@ extern "C" __attribute__((visibility("default"))) MLT_REPOSITORY
     MLT_REGISTER_METADATA(mlt_service_filter_type, "kdenlive_audio_visualizer", audioVisualizerMetadata, nullptr);
     MLT_REGISTER(mlt_service_filter_type, "kdenlive_region_blur", createNativeRegionBlur);
     MLT_REGISTER_METADATA(mlt_service_filter_type, "kdenlive_region_blur", nativeRegionBlurMetadata, nullptr);
+    MLT_REGISTER(mlt_service_filter_type, "kdenlive_camera_raw", createNativeCameraRaw);
+    MLT_REGISTER_METADATA(mlt_service_filter_type, "kdenlive_camera_raw", nativeCameraRawMetadata, nullptr);
     MLT_REGISTER(mlt_service_filter_type, "kdenlive_motion_curve", createMotionCurve);
     MLT_REGISTER_METADATA(mlt_service_filter_type, "kdenlive_motion_curve", metadata, nullptr);
     MLT_REGISTER(mlt_service_filter_type, "kdenlive_brightness_contrast", createNativeBrightnessContrast);

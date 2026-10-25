@@ -411,8 +411,13 @@ public:
             // QRect r = QStyle::alignedRect(opt.direction, Qt::AlignVCenter | Qt::AlignLeft, opt.decorationSize, r1);
             // Draw alternate background
             style->drawPrimitive(QStyle::PE_PanelItemViewItem, &opt, painter, opt.widget);
-            if ((option.state & static_cast<int>(QStyle::State_Selected)) != 0) {
-                painter->setPen(option.palette.highlightedText().color());
+            const bool rowSelected = (option.state & QStyle::State_Selected) != 0;
+            if (rowSelected) {
+                const QColor accent = option.palette.highlight().color();
+                QColor fill = option.palette.base().color().lighter(150);
+                painter->fillRect(r1.adjusted(0, 1, 0, -1), fill);
+                painter->fillRect(QRect(r1.left(), r1.top() + 2, 3, qMax(1, r1.height() - 4)), accent);
+                painter->setPen(option.palette.text().color());
             } else {
                 painter->setPen(option.palette.text().color());
             }
@@ -475,7 +480,9 @@ public:
                 QRect r2 = option.rect;
                 r2.adjust(decoWidth, mid, 0, 0);
                 QRectF bounding;
-                painter->drawText(r1, Qt::AlignLeft | Qt::AlignTop, index.data(AbstractProjectItem::DataName).toString(), &bounding);
+                const QString clipName = QFontMetrics(font).elidedText(index.data(AbstractProjectItem::DataName).toString(), Qt::ElideMiddle,
+                                                                        qMax(1, r1.width() - textMargin));
+                painter->drawText(r1, Qt::AlignLeft | Qt::AlignVCenter, clipName, &bounding);
                 font.setBold(false);
                 painter->setFont(font);
                 QString subText = index.data(AbstractProjectItem::DataDuration).toString();
@@ -493,7 +500,6 @@ public:
                     painter->setBrush(Qt::NoBrush);
                 }
                 if (!subText.isEmpty()) {
-                    r2.adjust(0, int(bounding.bottom() - r2.top()), 0, 0);
                     QColor subTextColor = painter->pen().color();
                     bool selected = opt.state & QStyle::State_Selected;
                     if (!selected) {
@@ -505,10 +511,12 @@ public:
                     if (!usage.isEmpty()) {
                         subText.append(QStringLiteral(" [%1]").arg(usage));
                     }
-                    painter->drawText(r2, Qt::AlignLeft | Qt::AlignTop, subText, &bounding);
+                    const bool hasAudioAndVideo = index.data(AbstractProjectItem::ClipHasAudioAndVideo).toBool();
+                    const int logicalIconSize = style->pixelMetric(QStyle::PM_SmallIconSize);
+                    const int iconGap = hasAudioAndVideo ? (logicalIconSize * 2) + (4 * textMargin) : logicalIconSize + (2 * textMargin);
+                    subText = QFontMetrics(painter->font()).elidedText(subText, Qt::ElideRight, qMax(1, r2.width() - iconGap));
+                    painter->drawText(r2, Qt::AlignLeft | Qt::AlignVCenter, subText, &bounding);
                     // Add audio/video icons for selective drag
-                    bool hasAudioAndVideo = index.data(AbstractProjectItem::ClipHasAudioAndVideo).toBool();
-                    int logicalIconSize = style->pixelMetric(QStyle::PM_SmallIconSize);
                     if (hasAudioAndVideo && (cType == ClipType::AV || cType == ClipType::Playlist || cType == ClipType::Timeline)) {
                         QRect audioRect(0, 0, logicalIconSize, logicalIconSize);
                         audioRect.moveTop(bounding.top() + 1);

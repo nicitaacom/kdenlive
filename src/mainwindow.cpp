@@ -4220,7 +4220,8 @@ void MainWindow::showToolMessage()
     applyToolMessageStyling();
 
     m_trimLabel->setText(toolLabel);
-    m_messageLabel->setKeyMap(message);
+    m_trimLabel->setToolTip(message);
+    m_messageLabel->setKeyMap(QString());
 }
 
 void MainWindow::setWidgetKeyBinding(const QString &mess)

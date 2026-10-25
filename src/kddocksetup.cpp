@@ -7,6 +7,7 @@ SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "kddocksetup.h"
 #include "core.h"
 #include "kdenlivesettings.h"
+#include "utils/colorcontrast.h"
 
 #include <kddockwidgets/qtwidgets/views/DockWidget.h>
 
@@ -76,21 +77,10 @@ void DockMenuBar::detachAccessory()
 
 void DockMenuBar::placeAccessory(QMenuBar *menu)
 {
-    if (!m_accessory || !menu) {
-        return;
-    }
-    QMenuBar *bars[2] = {m_source, m_bar.data()};
-    for (QMenuBar *bar : bars) {
-        if (bar && bar != menu && bar->cornerWidget(Qt::TopRightCorner) == m_accessory) {
-            bar->setCornerWidget(nullptr, Qt::TopRightCorner);
-        }
-    }
-    if (menu->cornerWidget(Qt::TopRightCorner) != m_accessory) {
-        menu->setCornerWidget(m_accessory, Qt::TopRightCorner);
-    }
-    if (!m_accessory->isVisible()) {
-        m_accessory->show();
-    }
+    Q_UNUSED(menu)
+    // Layout choices live in the View menu. A corner widget here was easy to
+    // hit and replaced the whole workspace.
+    detachAccessory();
 }
 
 void DockMenuBar::updateDock()
@@ -255,7 +245,7 @@ public:
         setDocumentMode(true);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         setExpanding(false);
-        setStyleSheet(QStringLiteral("QTabBar::tab { border: none; padding: 0 4px; }"));
+        setStyleSheet(QStringLiteral("QTabBar::tab { border: none; padding: 4px 12px; margin: 2px 1px; }"));
         parentWidget->setProperty("_breeze_force_frame", false);
         setContextMenuPolicy(Qt::CustomContextMenu);
         // The constructor of KDDockWidgets::QtWidgets::TabBar makes a QProxyStyle
@@ -275,22 +265,33 @@ public:
     }
 
 protected:
-    void paintEvent(QPaintEvent *event) override
+    void paintEvent(QPaintEvent *) override
     {
-        KDDockWidgets::QtWidgets::TabBar::paintEvent(event);
         QPainter painter(this);
-        painter.setPen(QPen(palette().midlight().color(), 1));
-        painter.drawLine(0, 0, width() - 1, 0);
-        const int selectedIndex = currentIndex();
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.fillRect(rect(), palette().window());
+        const int chosen = currentIndex();
+        const QColor windowColor = palette().window().color();
         for (int index = 0; index < count(); ++index) {
-            const QRect tab = tabRect(index);
-            painter.setPen(QPen(palette().midlight().color(), 1));
-            painter.drawLine(tab.right(), tab.top(), tab.right(), tab.bottom());
-        }
-        if (selectedIndex >= 0) {
-            const QRect selectedTab = tabRect(selectedIndex);
-            painter.setPen(QPen(palette().highlight().color(), 2));
-            painter.drawLine(selectedTab.left(), 0, selectedTab.right(), 0);
+            const QRect tab = tabRect(index).adjusted(3, 3, -3, -2);
+            QString label = tabText(index);
+            const int mnemonic = label.indexOf(QLatin1Char('&'));
+            if (mnemonic >= 0 && (mnemonic + 1 >= label.size() || label.at(mnemonic + 1) != QLatin1Char('&'))) {
+                label.remove(mnemonic, 1);
+            }
+            const bool chosenTab = index == chosen;
+            QColor fill = windowColor;
+            if (chosenTab) {
+                fill = windowColor.lighter(145);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(fill);
+                painter.drawRoundedRect(tab, 5, 5);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(palette().highlight().color());
+                painter.drawRoundedRect(QRect(tab.left() + 8, tab.bottom() - 2, qMax(8, tab.width() - 16), 2), 1, 1);
+            }
+            painter.setPen(ColorContrast::readableTextColor(fill, chosenTab ? palette().highlightedText().color() : palette().windowText().color()));
+            painter.drawText(tab, Qt::AlignCenter, label);
         }
     }
 };
@@ -301,20 +302,6 @@ public:
     explicit KdenliveDockGroup(KDDockWidgets::Core::Group *controller, KDDockWidgets::Core::View *parent = nullptr)
         : KDDockWidgets::QtWidgets::Group(controller, KDDockWidgets::QtCommon::View_qt::asQWidget(parent))
     {
-    }
-    void paintEvent(QPaintEvent *) override
-    {
-        // KDDockWidgets sizes the tab bar to its contents. Keep the divider
-        // visually full-width by drawing the continuation on the group itself.
-        // The tab bar paints the same rule over its own area, with the active
-        // tab replacing that segment with the accent color.
-        const auto tabBar = findChild<QTabBar *>();
-        if (!tabBar || !tabBar->isVisible()) {
-            return;
-        }
-        QPainter painter(this);
-        painter.setPen(QPen(palette().midlight().color(), 1));
-        painter.drawLine(0, tabBar->geometry().top(), width() - 1, tabBar->geometry().top());
     }
 };
 
